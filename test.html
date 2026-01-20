@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAMER Unit Tests</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #4fc3f7;
+        }
+        #output {
+            background: #0d0d1a;
+            padding: 20px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        .pass { color: #4caf50; }
+        .fail { color: #f44336; }
+    </style>
+</head>
+<body>
+    <h1>TAMER Unit Tests</h1>
+    <div id="output">Loading tests...</div>
+
+    <script type="module">
+        // Capture console output
+        const output = document.getElementById('output');
+        let outputText = '';
+
+        const originalLog = console.log;
+        const originalError = console.error;
+
+        console.log = function(...args) {
+            const text = args.join(' ');
+            outputText += text + '\n';
+            output.innerHTML = outputText
+                .replace(/✓/g, '<span class="pass">✓</span>')
+                .replace(/✗/g, '<span class="fail">✗</span>');
+            originalLog.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            const text = args.join(' ');
+            outputText += text + '\n';
+            output.innerHTML = outputText
+                .replace(/✓/g, '<span class="pass">✓</span>')
+                .replace(/✗/g, '<span class="fail">✗</span>');
+            originalError.apply(console, args);
+        };
+
+        // Run all tests
+        async function runAllTests() {
+            try {
+                // Run basic unit tests
+                await import('./js/tests/test.js');
+
+                console.log('\n\n');
+
+                // Run learning comparison tests
+                await import('./js/tests/learning_comparison_test.js');
+            } catch (err) {
+                console.error('Failed to load tests:', err);
+            }
+        }
+        runAllTests();
+    </script>
+</body>
+</html>

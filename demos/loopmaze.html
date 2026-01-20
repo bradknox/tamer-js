@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAMER - Loop Maze Demo</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .demo-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .demo-description {
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="demo-header">
+            <h1>Loop Maze</h1>
+            <p class="demo-description">
+                Navigate the blue agent to the green goal. The maze has two paths: a short direct route and a longer loop.
+                Train the agent by pressing <strong>/</strong> when it moves toward the goal and <strong>Z</strong> when it moves away.
+            </p>
+        </header>
+
+        <div class="main-content">
+            <div class="canvas-container">
+                <canvas id="game-canvas" width="500" height="500"></canvas>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel">
+                    <h2>Controls</h2>
+                    <div class="controls">
+                        <button id="start-btn" class="primary">Start (2)</button>
+                        <button id="step-btn" class="secondary">Step (1)</button>
+                        <button id="reset-btn" class="danger">Reset (R)</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Feedback</h2>
+                    <div id="reward-indicator">Give feedback with / or Z</div>
+                    <div style="margin-top: 10px;">
+                        <span id="training-indicator" class="training-on">Training: ON</span>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Status</h2>
+                    <div class="status">
+                        <div class="status-item">
+                            <span class="status-label">Episode</span>
+                            <span class="status-value" id="episode-count">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Steps</span>
+                            <span class="status-value" id="step-count">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Episode Steps</span>
+                            <span class="status-value" id="episode-steps">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Positive Rewards</span>
+                            <span class="status-value" id="positive-rewards">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Negative Rewards</span>
+                            <span class="status-value" id="negative-rewards">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Settings</h2>
+                    <div class="settings">
+                        <label>
+                            <span>Step Duration: <span id="speed-indicator">500ms</span></span>
+                            <input type="range" id="speed-slider" min="100" max="2000" value="500" step="100">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="panel instructions">
+                    <h2>Loop Maze Task</h2>
+                    <p>The agent starts at the bottom (gray cell) and must reach the goal at the top (green cell).</p>
+                    <p style="margin-top: 10px;"><strong>Optimal behavior:</strong> Take the short path straight up through the middle.</p>
+                    <p style="margin-top: 10px;">The bars in the bottom-right show the agent's learned preferences for each action.</p>
+                </div>
+
+                <div class="panel">
+                    <a href="../index.html">Back to Main</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { TamerApp } from '../js/main.js';
+
+        const app = new TamerApp('game-canvas', {
+            environment: 'loopmaze',
+            stepDurationMs: 500
+        });
+
+        function updateStats() {
+            const stats = app.getStats();
+            document.getElementById('episode-count').textContent = stats.totalEpisodes;
+            document.getElementById('step-count').textContent = stats.totalSteps;
+            document.getElementById('episode-steps').textContent = app.env.episodeSteps;
+            document.getElementById('positive-rewards').textContent = stats.rewardsGiven.positive;
+            document.getElementById('negative-rewards').textContent = stats.rewardsGiven.negative;
+        }
+
+        app.onStep(() => updateStats());
+        app.onEpisodeEnd(() => updateStats());
+        app.onReward((reward) => {
+            updateStats();
+            const indicator = document.getElementById('reward-indicator');
+            indicator.textContent = reward > 0 ? `+${reward} reward!` : `${reward} reward!`;
+            setTimeout(() => indicator.textContent = 'Give feedback with / or Z', 500);
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            app.toggle();
+            document.getElementById('start-btn').textContent = app.running ? 'Pause (2)' : 'Start (2)';
+        });
+
+        document.getElementById('step-btn').addEventListener('click', () => {
+            if (!app.running) {
+                app._singleStep();
+                updateStats();
+            }
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            app.reset();
+            document.getElementById('start-btn').textContent = 'Start (2)';
+            updateStats();
+        });
+
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            const speed = parseInt(e.target.value);
+            app.setStepDuration(speed);
+            document.getElementById('speed-indicator').textContent = `${speed}ms`;
+        });
+
+        updateStats();
+    </script>
+</body>
+</html>

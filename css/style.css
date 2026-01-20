@@ -1,0 +1,398 @@
+/**
+ * TAMER Web - Stylesheet
+ */
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    padding: 10px;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+.container {
+    max-width: 1100px;
+    height: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.4em;
+    color: #1976D2;
+}
+
+header p {
+    margin: 2px 0 0 0;
+    color: #666;
+    font-size: 0.85em;
+}
+
+.main-content {
+    display: flex;
+    gap: 15px;
+    flex: 1;
+    min-height: 0;
+    overflow: visible;
+}
+
+.canvas-container {
+    flex: 1;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.canvas-container canvas#game-canvas {
+    display: block;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    /* Size is controlled dynamically by JavaScript to maintain square aspect ratio */
+    /* Center horizontally within flex column container */
+    align-self: center;
+}
+
+/* Action values canvas in sidebar */
+.panel canvas#action-values-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* Tetris thumbnails grid */
+#tetris-thumbnails-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 2px;
+}
+
+.tetris-thumbnail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tetris-thumbnail canvas {
+    display: block;
+}
+
+.tetris-thumbnail .h-bar {
+    display: block;
+    margin-top: 1px;
+    border: none;
+}
+
+.sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+}
+
+.panel {
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 10px;
+    flex-shrink: 0;
+}
+
+.panel h2 {
+    margin: 0 0 8px 0;
+    font-size: 0.9em;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 6px;
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.controls button {
+    padding: 6px 12px;
+    font-size: 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.controls button.primary {
+    background-color: #2196F3;
+    color: white;
+}
+
+.controls button.primary:hover {
+    background-color: #1976D2;
+}
+
+.controls button.secondary {
+    background-color: #e0e0e0;
+    color: #333;
+}
+
+.controls button.secondary:hover {
+    background-color: #bdbdbd;
+}
+
+.controls button.danger {
+    background-color: #f44336;
+    color: white;
+}
+
+.controls button.danger:hover {
+    background-color: #d32f2f;
+}
+
+/* Status indicators */
+.status {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 12px;
+}
+
+.status-item:last-child {
+    border-bottom: none;
+}
+
+.status-label {
+    color: #666;
+}
+
+.status-value {
+    font-weight: 500;
+}
+
+/* Training indicator */
+#training-indicator {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.training-on {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.training-off {
+    background-color: #f44336;
+    color: white;
+}
+
+/* Reward indicator */
+#reward-indicator {
+    width: 100%;
+    height: 24px;
+    border-radius: 4px;
+    transition: background-color 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    font-size: 12px;
+    background-color: #f5f5f5;
+}
+
+.flash-positive {
+    background-color: #4CAF50 !important;
+    color: white;
+}
+
+.flash-negative {
+    background-color: #f44336 !important;
+    color: white;
+}
+
+/* Instructions */
+.instructions {
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.instructions h3 {
+    margin: 0 0 4px 0;
+    font-size: 12px;
+    color: #333;
+}
+
+.key-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 8px 0;
+}
+
+.key-list li {
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.key {
+    display: inline-block;
+    min-width: 32px;
+    padding: 2px 5px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 10px;
+    text-align: center;
+}
+
+/* Two-column key layout */
+.key-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+}
+
+/* Settings */
+.settings label {
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+}
+
+.settings label span {
+    margin-bottom: 4px;
+    color: #666;
+}
+
+.settings select,
+.settings input[type="range"] {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.settings input[type="range"] {
+    padding: 0;
+}
+
+/* Environment selector */
+.env-selector {
+    margin-bottom: 10px;
+    flex-shrink: 0;
+    width: 100%;
+    align-self: stretch;
+}
+
+.env-selector select {
+    width: 100%;
+    padding: 8px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+}
+
+/* Speed display */
+#speed-indicator {
+    font-family: monospace;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 8px 0;
+    color: #666;
+    font-size: 11px;
+    flex-shrink: 0;
+}
+
+footer p {
+    margin: 2px 0;
+}
+
+footer a {
+    color: #1976D2;
+    text-decoration: none;
+}
+
+footer a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    body {
+        overflow: auto;
+    }
+
+    .main-content {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+    }
+
+    .canvas-container {
+        min-height: 300px;
+    }
+}
+
+@media (max-height: 700px) {
+    header h1 {
+        font-size: 1.2em;
+    }
+
+    header p {
+        display: none;
+    }
+
+    .panel {
+        padding: 8px;
+    }
+
+    .panel h2 {
+        margin-bottom: 6px;
+        padding-bottom: 4px;
+    }
+}

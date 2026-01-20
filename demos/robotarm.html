@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAMER - Robot Arm Demo</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .demo-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .demo-description {
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="demo-header">
+            <h1>Robot Arm</h1>
+            <p class="demo-description">
+                Train a multi-jointed robot arm to reach the red target!
+                Give positive feedback (<strong>/</strong>) when the end effector moves toward the goal
+                and negative feedback (<strong>Z</strong>) when it moves away.
+            </p>
+        </header>
+
+        <div class="main-content">
+            <div class="canvas-container">
+                <canvas id="game-canvas" width="500" height="500"></canvas>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel">
+                    <h2>Controls</h2>
+                    <div class="controls">
+                        <button id="start-btn" class="primary">Start (2)</button>
+                        <button id="step-btn" class="secondary">Step (1)</button>
+                        <button id="reset-btn" class="danger">Reset (R)</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Feedback</h2>
+                    <div id="reward-indicator">Give feedback with / or Z</div>
+                    <div style="margin-top: 10px;">
+                        <span id="training-indicator" class="training-on">Training: ON</span>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Status</h2>
+                    <div class="status">
+                        <div class="status-item">
+                            <span class="status-label">Episode</span>
+                            <span class="status-value" id="episode-count">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Steps</span>
+                            <span class="status-value" id="step-count">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Positive Rewards</span>
+                            <span class="status-value" id="positive-rewards">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Negative Rewards</span>
+                            <span class="status-value" id="negative-rewards">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Settings</h2>
+                    <div class="settings">
+                        <label>
+                            <span>Step Duration: <span id="speed-indicator">300ms</span></span>
+                            <input type="range" id="speed-slider" min="50" max="1000" value="300" step="50">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="panel instructions">
+                    <h2>Robot Arm Task</h2>
+                    <p>The robot arm has 4 joints. Each joint can be rotated positive (+) or negative (-).</p>
+                    <p style="margin-top: 10px;"><strong>Actions:</strong> J0+, J0-, J1+, J1-, J2+, J2-, J3+, J3-</p>
+                    <p style="margin-top: 10px;"><strong>Goal:</strong> Move the orange end effector to touch the red target.</p>
+                </div>
+
+                <div class="panel">
+                    <a href="../index.html">Back to Main</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { TamerApp } from '../js/main.js';
+
+        const app = new TamerApp('game-canvas', {
+            environment: 'robotarm',
+            stepDurationMs: 300,
+            basisFcnsPerDim: 5  // Moderate for 4D state
+        });
+
+        function updateStats() {
+            const stats = app.getStats();
+            document.getElementById('episode-count').textContent = stats.totalEpisodes;
+            document.getElementById('step-count').textContent = stats.totalSteps;
+            document.getElementById('positive-rewards').textContent = stats.rewardsGiven.positive;
+            document.getElementById('negative-rewards').textContent = stats.rewardsGiven.negative;
+        }
+
+        app.onStep(() => updateStats());
+        app.onEpisodeEnd(() => updateStats());
+        app.onReward((reward) => {
+            updateStats();
+            const indicator = document.getElementById('reward-indicator');
+            indicator.textContent = reward > 0 ? `+${reward} reward!` : `${reward} reward!`;
+            setTimeout(() => indicator.textContent = 'Give feedback with / or Z', 500);
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            app.toggle();
+            document.getElementById('start-btn').textContent = app.running ? 'Pause (2)' : 'Start (2)';
+        });
+
+        document.getElementById('step-btn').addEventListener('click', () => {
+            if (!app.running) {
+                app._singleStep();
+                updateStats();
+            }
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            app.reset();
+            document.getElementById('start-btn').textContent = 'Start (2)';
+            updateStats();
+        });
+
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            const speed = parseInt(e.target.value);
+            app.setStepDuration(speed);
+            document.getElementById('speed-indicator').textContent = `${speed}ms`;
+        });
+
+        updateStats();
+    </script>
+</body>
+</html>

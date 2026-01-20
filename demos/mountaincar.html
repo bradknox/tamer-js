@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAMER - Mountain Car Demo</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .demo-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .demo-description {
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="demo-header">
+            <h1>Mountain Car</h1>
+            <p class="demo-description">
+                Help the car reach the flag at the top of the right hill! The car isn't powerful enough to drive straight up -
+                it must build momentum by rocking back and forth. Reward the agent when it builds momentum toward the goal.
+            </p>
+        </header>
+
+        <div class="main-content">
+            <div class="canvas-container">
+                <canvas id="game-canvas" width="600" height="400"></canvas>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel">
+                    <h2>Controls</h2>
+                    <div class="controls">
+                        <button id="start-btn" class="primary">Start (2)</button>
+                        <button id="step-btn" class="secondary">Step (1)</button>
+                        <button id="reset-btn" class="danger">Reset (R)</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Feedback</h2>
+                    <div id="reward-indicator">Give feedback with / or Z</div>
+                    <div style="margin-top: 10px;">
+                        <span id="training-indicator" class="training-on">Training: ON</span>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Status</h2>
+                    <div class="status">
+                        <div class="status-item">
+                            <span class="status-label">Episode</span>
+                            <span class="status-value" id="episode-count">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Steps</span>
+                            <span class="status-value" id="step-count">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Episode Steps</span>
+                            <span class="status-value" id="episode-steps">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Best Episode</span>
+                            <span class="status-value" id="best-episode">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Settings</h2>
+                    <div class="settings">
+                        <label>
+                            <span>Step Duration: <span id="speed-indicator">200ms</span></span>
+                            <input type="range" id="speed-slider" min="50" max="500" value="200" step="50">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="panel instructions">
+                    <h2>Mountain Car Task</h2>
+                    <p><strong>Actions:</strong> Left, Neutral, Right</p>
+                    <p style="margin-top: 10px;"><strong>Strategy:</strong> The car needs to swing back and forth to build momentum. Reward it when:</p>
+                    <ul style="margin-top: 5px; padding-left: 20px;">
+                        <li>It accelerates up the right hill</li>
+                        <li>It builds speed going left to gain momentum</li>
+                    </ul>
+                    <p style="margin-top: 10px;">Punish when it wastes energy or goes the wrong direction at high speed.</p>
+                </div>
+
+                <div class="panel">
+                    <a href="../index.html">Back to Main</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { TamerApp } from '../js/main.js';
+
+        let bestSteps = Infinity;
+
+        const app = new TamerApp('game-canvas', {
+            environment: 'mountaincar',
+            stepDurationMs: 200,
+            basisFcnsPerDim: 8  // More RBFs for this continuous domain
+        });
+
+        function updateStats() {
+            const stats = app.getStats();
+            document.getElementById('episode-count').textContent = stats.totalEpisodes;
+            document.getElementById('step-count').textContent = stats.totalSteps;
+            document.getElementById('episode-steps').textContent = app.env.episodeSteps;
+            if (bestSteps < Infinity) {
+                document.getElementById('best-episode').textContent = bestSteps + ' steps';
+            }
+        }
+
+        app.onStep(() => updateStats());
+
+        app.onEpisodeEnd((stats) => {
+            if (stats.steps < bestSteps && stats.steps < 400) {  // 400 is max, so only count successes
+                bestSteps = stats.steps;
+            }
+            updateStats();
+        });
+
+        app.onReward((reward) => {
+            const indicator = document.getElementById('reward-indicator');
+            indicator.textContent = reward > 0 ? `+${reward} reward!` : `${reward} reward!`;
+            setTimeout(() => indicator.textContent = 'Give feedback with / or Z', 500);
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            app.toggle();
+            document.getElementById('start-btn').textContent = app.running ? 'Pause (2)' : 'Start (2)';
+        });
+
+        document.getElementById('step-btn').addEventListener('click', () => {
+            if (!app.running) {
+                app._singleStep();
+                updateStats();
+            }
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            app.reset();
+            bestSteps = Infinity;
+            document.getElementById('start-btn').textContent = 'Start (2)';
+            document.getElementById('best-episode').textContent = '-';
+            updateStats();
+        });
+
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            const speed = parseInt(e.target.value);
+            app.setStepDuration(speed);
+            document.getElementById('speed-indicator').textContent = `${speed}ms`;
+        });
+
+        updateStats();
+    </script>
+</body>
+</html>
