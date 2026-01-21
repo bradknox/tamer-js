@@ -466,9 +466,8 @@ export class TetrisState {
             }
         }
 
-        // Scoring: 1 line = 1, 2 lines = 2, 3 lines = 4, 4 lines = 8
-        // Math.pow(2.0, numRowsCleared-1)
-        this.score += Math.pow(2.0, numRowsCleared - 1);
+        // Score is simply the number of lines cleared
+        this.score += numRowsCleared;
     }
 
     /**
