@@ -427,6 +427,45 @@ export class TamerAgent {
     }
 
     /**
+     * Process a manual step - for when user controls the agent but TAMER still learns
+     * This allows learning from human-chosen actions while in manual control mode
+     * @param {number} action - The user-chosen action
+     * @param {number[]} newObs - The new observation after taking the action
+     * @param {number} time - Current time in milliseconds
+     */
+    processManualStep(action, newObs, time) {
+        const timeInSec = time / 1000;
+
+        // Save the observation BEFORE any changes
+        const obsBeforeStep = this.currentObs;
+
+        // End previous timestep (if any)
+        if (!this._firstStep) {
+            this.hLearner.recordTimeStepEnd(timeInSec);
+        }
+
+        // Process pending human rewards
+        if (this.pendingRewards.length > 0) {
+            this.hLearner.processHRew(this.pendingRewards);
+            this.pendingRewards = [];
+        }
+
+        // Process samples and update model
+        this.hLearner.processSamples(time, this.creditAssign.isTraining(), true);
+
+        // Record timestep with the user-chosen action
+        this.hLearner.recordTimeStepStart(obsBeforeStep, action, timeInSec);
+
+        // Clear first step flag
+        this._firstStep = false;
+
+        // Update internal state
+        this.currentObs = newObs;
+        this.lastAction = action;
+        this.totalSteps++;
+    }
+
+    /**
      * Get predicted human reward values for all actions at current state
      * For extended actions (Tetris), returns values for top placements
      * @returns {number[]}

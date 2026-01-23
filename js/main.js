@@ -85,6 +85,11 @@ export class TamerApp {
         this.paused = false;
         this.lastStepTime = 0;
         this.animationFrameId = null;
+        this.timeoutId = null;  // For fast simulation mode
+
+        // Manual control mode
+        this.manualControlMode = false;
+        this.lastUserActI = -1;  // Last user action input (-1 = none)
 
         // Episode end pause - EXACT from Java RunLocalExperiment.PAUSE_DUR_AFTER_EP
         // Allows user to give feedback for final actions of the episode
@@ -94,6 +99,7 @@ export class TamerApp {
 
         // Statistics
         this.totalEpisodes = 0;
+        this.stepsThisEp = 0;  // Steps in current episode (reset each episode)
         this.rewardsGiven = { positive: 0, negative: 0 };
 
         // Tetris H-value tracking for bar visualization
@@ -361,7 +367,72 @@ export class TamerApp {
                 event.preventDefault();
                 this.reset();
                 break;
+
+            // Manual control keys - EXACT from Java ImitationAgent
+            case 'j':
+            case 'arrowleft':
+                // Left/accelerate left
+                event.preventDefault();
+                this._handleManualAction('left');
+                break;
+            case 'k':
+            case 'arrowdown':
+                // Down/neutral/no action
+                event.preventDefault();
+                this._handleManualAction('down');
+                break;
+            case 'l':
+            case 'arrowright':
+                // Right/accelerate right
+                event.preventDefault();
+                this._handleManualAction('right');
+                break;
+            case 'i':
+            case 'arrowup':
+                // Up
+                event.preventDefault();
+                this._handleManualAction('up');
+                break;
         }
+    }
+
+    /**
+     * Handle manual control action key press - EXACT from Java ImitationAgent
+     * Maps keyboard keys to actions based on environment
+     * Accepts: 'left', 'right', 'up', 'down' (from arrow keys or j/k/l/i)
+     */
+    _handleManualAction(direction) {
+        if (!this.manualControlMode) return;
+
+        // Environment-specific key mappings - EXACT from Java ImitationAgent
+        if (this.envName === 'loopmaze') {
+            // 0=right, 1=left, 2=down, 3=up (from LoopMaze action labels)
+            if (direction === 'left') this.lastUserActI = 1;
+            else if (direction === 'down') this.lastUserActI = 2;
+            else if (direction === 'right') this.lastUserActI = 0;
+            else if (direction === 'up') this.lastUserActI = 3;
+        } else if (this.envName === 'cartpole') {
+            // 0=left, 1=right
+            if (direction === 'left') this.lastUserActI = 0;
+            else if (direction === 'right') this.lastUserActI = 1;
+        } else if (this.envName === 'mountaincar') {
+            // 0=left, 1=neutral, 2=right
+            if (direction === 'left') this.lastUserActI = 0;
+            else if (direction === 'down') this.lastUserActI = 1;  // neutral
+            else if (direction === 'right') this.lastUserActI = 2;
+        } else if (this.envName === 'acrobot') {
+            // 0=left, 1=none, 2=right
+            if (direction === 'left') this.lastUserActI = 0;
+            else if (direction === 'down') this.lastUserActI = 1;  // no torque
+            else if (direction === 'right') this.lastUserActI = 2;
+        } else if (this.envName === 'robotarm') {
+            // Default 4-action mapping for robot arm
+            if (direction === 'left') this.lastUserActI = 1;
+            else if (direction === 'down') this.lastUserActI = 2;
+            else if (direction === 'right') this.lastUserActI = 0;
+            else if (direction === 'up') this.lastUserActI = 3;
+        }
+        // Note: Tetris uses extended actions, manual control not supported
     }
 
     /**
@@ -406,6 +477,7 @@ export class TamerApp {
             try {
                 this.agent.startEpisode();
                 this.totalEpisodes++;
+                this.stepsThisEp = 0;
                 console.log('Episode started, totalEpisodes:', this.totalEpisodes);
             } catch (e) {
                 console.error('Error starting episode:', e);
@@ -427,6 +499,12 @@ export class TamerApp {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
+        if (this.timeoutId) {
+            clearTimeout(this.timeoutId);
+            this.timeoutId = null;
+        }
+        // Clear canvas to prevent flashing of previous environment state
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
     /**
@@ -438,6 +516,10 @@ export class TamerApp {
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
+        }
+        if (this.timeoutId) {
+            clearTimeout(this.timeoutId);
+            this.timeoutId = null;
         }
         // Render current state to ensure display is correct while paused
         this._render();
@@ -462,7 +544,10 @@ export class TamerApp {
         this.agent.reset();
         this.env.start();
         this.totalEpisodes = 0;
+        this.stepsThisEp = 0;
         this.rewardsGiven = { positive: 0, negative: 0 };
+        // Reset manual control state
+        this.lastUserActI = -1;
         // Reset H-value bounds to tiny values so 0 starts centered
         this.allTimeMinH = -0.000001;
         this.allTimeMaxH = 0.000001;
@@ -471,6 +556,8 @@ export class TamerApp {
         this._cachedTetrisPlacements = null;
         this._cachedTetrisBlockId = null;
         this._cachedTetrisObs = null;
+        // Clear canvas before rendering to prevent flashing
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this._render();
     }
 
@@ -481,13 +568,39 @@ export class TamerApp {
         if (this.agent.currentObs === null) {
             this.agent.startEpisode();
             this.totalEpisodes++;
+            this.stepsThisEp = 0;
         }
 
         const time = performance.now();
-        const result = this.agent.step(time);
+
+        // In manual mode, use user action or default to 0
+        let result;
+        if (this.manualControlMode && this.envName !== 'tetris') {
+            // Note: lastUserActI persists across steps (matches Java behavior for held keys)
+            const action = this.lastUserActI !== -1 ? this.lastUserActI : 0;
+
+            const envResult = this.env.step(action);
+            this.stepsThisEp++;
+
+            if (this.agent.isTraining()) {
+                this.agent.processManualStep(action, envResult.obs, time);
+            }
+
+            result = {
+                action: action,
+                obs: envResult.obs,
+                reward: envResult.reward,
+                terminal: envResult.terminal
+            };
+        } else {
+            result = this.agent.step(time);
+            this.stepsThisEp++;
+        }
 
         if (result.terminal) {
             this.agent.endEpisode();
+            // Reset manual control action at episode end - EXACT from Java ImitationAgent behavior
+            this.lastUserActI = -1;
 
             if (this.onEpisodeEndCallback) {
                 this.onEpisodeEndCallback(this.env.getEpisodeStats());
@@ -496,6 +609,7 @@ export class TamerApp {
             // Start new episode
             this.agent.startEpisode();
             this.totalEpisodes++;
+            this.stepsThisEp = 0;
         }
 
         if (this.onStepCallback) {
@@ -506,7 +620,7 @@ export class TamerApp {
     }
 
     /**
-     * Main run loop
+     * Main run loop - chooses appropriate timing strategy
      */
     _runLoop() {
         if (!this.running) {
@@ -514,66 +628,147 @@ export class TamerApp {
             return;
         }
 
+        // Use different strategies based on step duration
+        // requestAnimationFrame is limited to ~60Hz (16ms), so use setTimeout for faster speeds
+        if (this.stepDurationMs >= 16) {
+            this._runLoopRAF();
+        } else {
+            this._runLoopFast();
+        }
+    }
+
+    /**
+     * Run loop using requestAnimationFrame - for normal speeds (>= 16ms/step)
+     */
+    _runLoopRAF() {
+        if (!this.running) return;
+
         const currentTime = performance.now();
 
         // Handle episode end pause - EXACT from Java RunLocalExperiment
-        // This pause allows the user to give feedback for the final actions
         if (this.inEpisodeEndPause) {
             const pauseElapsed = currentTime - this.episodeEndPauseStart;
             if (pauseElapsed >= this.pauseDurAfterEp) {
-                // Pause is over, start new episode
                 this.inEpisodeEndPause = false;
                 this.agent.startEpisode();
                 this.totalEpisodes++;
+                this.stepsThisEp = 0;
                 this.lastStepTime = currentTime;
             }
-            // During pause, still render and accept feedback, but don't take steps
             this._render();
-            this.animationFrameId = requestAnimationFrame(() => this._runLoop());
+            this.animationFrameId = requestAnimationFrame(() => this._runLoopRAF());
             return;
         }
 
         const elapsed = currentTime - this.lastStepTime;
 
         if (elapsed >= this.stepDurationMs) {
-            // Take a step
-            try {
-                const result = this.agent.step(currentTime);
+            this._doStep(currentTime);
+            this.lastStepTime = currentTime;
+        }
 
-                if (result.terminal) {
-                    this.agent.endEpisode();
+        this._render();
+        this.animationFrameId = requestAnimationFrame(() => this._runLoopRAF());
+    }
 
-                    if (this.onEpisodeEndCallback) {
-                        this.onEpisodeEndCallback(this.env.getEpisodeStats());
-                    }
+    /**
+     * Run loop using setTimeout - for fast simulation (< 16ms/step)
+     * Runs multiple steps per frame and renders periodically
+     */
+    _runLoopFast() {
+        if (!this.running) return;
 
-                    // Enter episode end pause - allows feedback for final actions
-                    // EXACT from Java RunLocalExperiment.PAUSE_DUR_AFTER_EP
-                    if (this.pauseDurAfterEp > 0) {
-                        this.inEpisodeEndPause = true;
-                        this.episodeEndPauseStart = currentTime;
-                    } else {
-                        // No pause, start immediately
-                        this.agent.startEpisode();
-                        this.totalEpisodes++;
-                    }
-                }
+        const currentTime = performance.now();
 
-                if (this.onStepCallback) {
-                    this.onStepCallback(result);
-                }
-
+        // Handle episode end pause
+        if (this.inEpisodeEndPause) {
+            const pauseElapsed = currentTime - this.episodeEndPauseStart;
+            if (pauseElapsed >= this.pauseDurAfterEp) {
+                this.inEpisodeEndPause = false;
+                this.agent.startEpisode();
+                this.totalEpisodes++;
+                this.stepsThisEp = 0;
                 this.lastStepTime = currentTime;
-            } catch (e) {
-                console.error('Error in step:', e);
+            } else {
+                this._render();
+                this.timeoutId = setTimeout(() => this._runLoopFast(), 0);
+                return;
             }
         }
 
-        // Render
+        // Calculate how many steps to run per render (~60fps = 16ms)
+        // Run more steps for faster simulation
+        const stepsPerFrame = Math.max(1, Math.floor(16 / Math.max(0.001, this.stepDurationMs)));
+
+        for (let i = 0; i < stepsPerFrame && this.running && !this.inEpisodeEndPause; i++) {
+            this._doStep(performance.now());
+        }
+
         this._render();
 
-        // Schedule next frame
-        this.animationFrameId = requestAnimationFrame(() => this._runLoop());
+        // Schedule next batch using setTimeout(0) for maximum speed
+        this.timeoutId = setTimeout(() => this._runLoopFast(), 0);
+    }
+
+    /**
+     * Execute a single step
+     */
+    _doStep(currentTime) {
+        try {
+            // In manual mode, get action from user input or use default (0)
+            let result;
+            if (this.manualControlMode && this.envName !== 'tetris') {
+                // Use user action if provided, otherwise default to action 0 - EXACT from Java ImitationAgent line 234
+                // Note: lastUserActI persists across steps (NOT reset here) - this matches Java behavior
+                // where held keys work because the action persists until a new key is pressed or episode ends
+                const action = this.lastUserActI !== -1 ? this.lastUserActI : 0;
+
+                // Manually step with the chosen action
+                const envResult = this.env.step(action);
+                this.stepsThisEp++;
+
+                // If training is on in manual mode, still let the agent learn
+                if (this.agent.isTraining()) {
+                    // Process the step through the agent for learning
+                    this.agent.processManualStep(action, envResult.obs, currentTime);
+                }
+
+                result = {
+                    action: action,
+                    obs: envResult.obs,
+                    reward: envResult.reward,
+                    terminal: envResult.terminal
+                };
+            } else {
+                result = this.agent.step(currentTime);
+                this.stepsThisEp++;
+            }
+
+            if (result.terminal) {
+                this.agent.endEpisode();
+                // Reset manual control action at episode end - EXACT from Java ImitationAgent behavior
+                this.lastUserActI = -1;
+
+                if (this.onEpisodeEndCallback) {
+                    this.onEpisodeEndCallback(this.env.getEpisodeStats());
+                }
+
+                if (this.pauseDurAfterEp > 0) {
+                    this.inEpisodeEndPause = true;
+                    this.episodeEndPauseStart = currentTime;
+                } else {
+                    this.agent.startEpisode();
+                    this.totalEpisodes++;
+                    this.stepsThisEp = 0;
+                }
+            }
+
+            if (this.onStepCallback) {
+                this.onStepCallback(result);
+            }
+        } catch (e) {
+            console.error('Error in step:', e);
+        }
     }
 
     /**
@@ -1095,11 +1290,65 @@ export class TamerApp {
         return {
             ...this.agent.getStats(),
             totalEpisodes: this.totalEpisodes,
+            stepsThisEp: this.stepsThisEp,
             rewardsGiven: { ...this.rewardsGiven },
             isRunning: this.running,
             isPaused: this.paused,
-            isTraining: this.agent.isTraining()
+            isTraining: this.agent.isTraining(),
+            isManualMode: this.manualControlMode
         };
+    }
+
+    /**
+     * Set manual control mode
+     * @param {boolean} enabled - Whether manual control is enabled
+     * @returns {boolean} Whether the mode was successfully set
+     */
+    setManualControlMode(enabled) {
+        // Tetris uses extended actions, manual control not supported
+        if (this.envName === 'tetris') {
+            console.warn('Manual control not supported for Tetris (uses extended actions)');
+            this.manualControlMode = false;
+            this._updateModeIndicator(false);
+            return false;
+        }
+        this.manualControlMode = enabled;
+        this.lastUserActI = -1;  // Reset user action
+        this._updateModeIndicator(enabled);
+        return true;
+    }
+
+    /**
+     * Toggle manual control mode
+     * @returns {boolean} New manual control state
+     */
+    toggleManualControlMode() {
+        // Tetris uses extended actions, manual control not supported
+        if (this.envName === 'tetris') {
+            console.warn('Manual control not supported for Tetris (uses extended actions)');
+            return false;
+        }
+        this.setManualControlMode(!this.manualControlMode);
+        return this.manualControlMode;
+    }
+
+    /**
+     * Check if manual control mode is enabled
+     * @returns {boolean}
+     */
+    isManualControlMode() {
+        return this.manualControlMode;
+    }
+
+    /**
+     * Update mode indicator (to be called by UI)
+     */
+    _updateModeIndicator(isManual) {
+        const indicator = document.getElementById('mode-indicator');
+        if (indicator) {
+            indicator.textContent = isManual ? 'Mode: Manual' : 'Mode: TAMER';
+            indicator.className = isManual ? 'mode-manual' : 'mode-tamer';
+        }
     }
 
     /**
