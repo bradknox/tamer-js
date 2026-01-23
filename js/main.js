@@ -643,6 +643,12 @@ export class TamerApp {
     _runLoopRAF() {
         if (!this.running) return;
 
+        // Check if we should switch to fast loop (user changed speed)
+        if (this.stepDurationMs < 16) {
+            this._runLoopFast();
+            return;
+        }
+
         const currentTime = performance.now();
 
         // Handle episode end pause - EXACT from Java RunLocalExperiment
@@ -677,6 +683,12 @@ export class TamerApp {
      */
     _runLoopFast() {
         if (!this.running) return;
+
+        // Check if we should switch to RAF loop (user slowed down)
+        if (this.stepDurationMs >= 16) {
+            this._runLoopRAF();
+            return;
+        }
 
         const currentTime = performance.now();
 

@@ -288,7 +288,7 @@ export class Tetris {
         ctx.fillStyle = '#000000';
         ctx.font = '16px Arial';
         ctx.textAlign = 'left';
-        ctx.fillText(`Score: ${state.score}`, offsetX, offsetY + worldHeight * cellSize + 25);
+        ctx.fillText(`Lines: ${state.score}`, offsetX, offsetY + worldHeight * cellSize + 25);
 
         // Draw game over message
         if (state.isGameOver) {
