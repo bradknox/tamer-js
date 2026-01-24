@@ -415,3 +415,162 @@ footer a:hover {
         padding-bottom: 4px;
     }
 }
+
+/* ===================== */
+/* Intro/Landing Page    */
+/* ===================== */
+
+.intro-page {
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 40px 20px;
+}
+
+.intro-container {
+    max-width: 600px;
+    width: 100%;
+}
+
+.intro-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.intro-header h1 {
+    font-size: 2.2em;
+    color: #1976D2;
+    margin: 0 0 10px 0;
+}
+
+.intro-header .tagline {
+    font-size: 1.1em;
+    color: #555;
+    margin: 0;
+}
+
+.intro-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 30px;
+}
+
+.intro-content section {
+    margin-bottom: 25px;
+}
+
+.intro-content section:last-of-type {
+    margin-bottom: 30px;
+}
+
+.intro-content h2 {
+    font-size: 1.1em;
+    color: #333;
+    margin: 0 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.how-it-works ol {
+    margin: 0 0 15px 0;
+    padding-left: 24px;
+}
+
+.how-it-works li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.how-it-works p {
+    margin: 0;
+    color: #555;
+    line-height: 1.5;
+}
+
+.tip {
+    background: #f8f9fa;
+    border-left: 3px solid #1976D2;
+    padding: 15px;
+    border-radius: 0 6px 6px 0;
+}
+
+.tip p {
+    margin: 0;
+    color: #555;
+    line-height: 1.6;
+}
+
+.keys-section .keys-grid {
+    display: flex;
+    gap: 40px;
+}
+
+.keys-group h3 {
+    font-size: 0.9em;
+    color: #666;
+    margin: 0 0 8px 0;
+    font-weight: 500;
+}
+
+.keys-group > div {
+    margin-bottom: 6px;
+    font-size: 0.95em;
+}
+
+.intro-content .key {
+    min-width: 40px;
+}
+
+.start-button {
+    display: block;
+    width: 100%;
+    padding: 16px 32px;
+    font-size: 1.2em;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    color: white;
+    background-color: #1976D2;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.start-button:hover {
+    background-color: #1565C0;
+}
+
+.intro-footer {
+    text-align: center;
+    margin-top: 20px;
+    color: #888;
+    font-size: 0.85em;
+}
+
+.intro-footer a {
+    color: #1976D2;
+    text-decoration: none;
+}
+
+.intro-footer a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+    .intro-page {
+        padding: 20px 15px;
+    }
+
+    .intro-content {
+        padding: 20px;
+    }
+
+    .keys-section .keys-grid {
+        flex-direction: column;
+        gap: 20px;
+    }
+}

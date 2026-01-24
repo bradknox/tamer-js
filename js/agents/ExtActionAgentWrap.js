@@ -181,6 +181,15 @@ export class ExtActionAgentWrap {
     }
 
     /**
+     * Set training mode - delegates to core agent
+     */
+    setTraining(enabled) {
+        if (this.coreAgent.setTraining) {
+            this.coreAgent.setTraining(enabled);
+        }
+    }
+
+    /**
      * Check if training is enabled
      */
     isTraining() {

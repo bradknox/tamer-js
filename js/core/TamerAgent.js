@@ -509,6 +509,13 @@ export class TamerAgent {
     }
 
     /**
+     * Set training mode
+     */
+    setTraining(enabled) {
+        this.hLearner.setTraining(enabled);
+    }
+
+    /**
      * Check if training is enabled
      * @returns {boolean}
      */

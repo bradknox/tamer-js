@@ -197,6 +197,13 @@ export class HLearner {
     }
 
     /**
+     * Set training session state
+     */
+    setTraining(enabled) {
+        this.credA.setTraining(enabled);
+    }
+
+    /**
      * Check if currently training
      */
     isTraining() {

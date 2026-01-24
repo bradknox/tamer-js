@@ -513,6 +513,14 @@ export class CreditAssign {
     }
 
     /**
+     * Set training session state
+     */
+    setTraining(enabled) {
+        const currTime = performance.now() / 1000;
+        this.setInTrainSess(currTime, enabled);
+    }
+
+    /**
      * Check if in training session
      */
     isTraining() {

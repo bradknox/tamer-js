@@ -300,6 +300,13 @@ export class TamerApp {
                 event.preventDefault();
                 const isTraining = this.agent.toggleTraining();
                 this._updateTrainingIndicator(isTraining);
+
+                // Manual mode and training are mutually exclusive
+                if (isTraining && this.manualControlMode) {
+                    this.manualControlMode = false;
+                    this.lastUserActI = -1;
+                    this._updateModeIndicator(false);
+                }
                 break;
 
             case '1':
@@ -366,6 +373,14 @@ export class TamerApp {
                 // Reset
                 event.preventDefault();
                 this.reset();
+                break;
+
+            case 'm':
+                // Toggle manual control mode
+                event.preventDefault();
+                console.log('m pressed, manualControlMode:', this.manualControlMode, 'training:', this.agent.isTraining());
+                this.toggleManualControlMode();
+                console.log('after toggle, manualControlMode:', this.manualControlMode);
                 break;
 
             // Manual control keys - EXACT from Java ImitationAgent
@@ -1324,9 +1339,25 @@ export class TamerApp {
             this._updateModeIndicator(false);
             return false;
         }
+
+        console.log('setManualControlMode called with:', enabled, 'current training:', this.agent.isTraining());
+
+        // Manual mode and training are mutually exclusive
+        // Turn off training first if needed
+        if (enabled && this.agent.isTraining()) {
+            console.log('Turning off training because entering manual mode');
+            try {
+                this.agent.setTraining(false);
+                this._updateTrainingIndicator(false);
+            } catch (e) {
+                console.error('Error turning off training:', e);
+            }
+        }
+
         this.manualControlMode = enabled;
         this.lastUserActI = -1;  // Reset user action
         this._updateModeIndicator(enabled);
+        console.log('Manual mode now:', this.manualControlMode);
         return true;
     }
 

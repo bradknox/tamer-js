@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAMER Demonstrations v28</title>
+    <link rel="stylesheet" href="css/style.css?v=28">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>TAMER Demonstrations v28</h1>
+            <p>Training an Agent Manually via Evaluative Reinforcement</p>
+        </header>
+
+        <div class="main-content">
+            <div class="canvas-container">
+                <div class="env-selector">
+                    <select id="environment-select">
+                        <option value="loopmaze">Loop Maze</option>
+                        <option value="mountaincar">Mountain Car</option>
+                        <option value="cartpole">Cart Pole</option>
+                        <option value="acrobot">Acrobot</option>
+                        <option value="tetris">Tetris</option>
+                        <option value="robotarm">Robot Arm</option>
+                    </select>
+                </div>
+                <canvas id="game-canvas" width="400" height="400"></canvas>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel">
+                    <h2>Controls</h2>
+                    <div class="controls">
+                        <button id="start-btn" class="primary">Start (2)</button>
+                        <button id="step-btn" class="secondary">Step (1)</button>
+                        <button id="reset-btn" class="danger">Reset (R)</button>
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <div id="reward-indicator">Press / for +reward, z for -reward</div>
+                    </div>
+                    <div style="margin-top: 6px; display: flex; align-items: center; gap: 10px;">
+                        <span id="training-indicator" class="training-off">Training: OFF</span>
+                        <span style="font-size: 11px; color: #666;">(Space to toggle)</span>
+                    </div>
+                    <div style="margin-top: 6px; display: flex; align-items: center; gap: 10px;">
+                        <span id="mode-indicator" class="mode-tamer">Mode: TAMER</span>
+                        <button id="mode-toggle-btn" class="secondary" style="padding: 3px 8px; font-size: 11px;">Toggle Manual</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h2>Status</h2>
+                    <div class="status">
+                        <div class="status-item">
+                            <span class="status-label">Episode</span>
+                            <span class="status-value" id="episode-count">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Steps</span>
+                            <span class="status-value" id="step-count">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">+Rewards / -Rewards</span>
+                            <span class="status-value"><span id="positive-rewards">0</span> / <span id="negative-rewards">0</span></span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Speed</span>
+                            <span class="status-value" id="speed-indicator">800ms</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <input type="range" id="speed-slider" min="0.001" max="2000" value="800" step="0.001" style="width: 100%;">
+                    </div>
+                </div>
+
+                <div class="panel" id="action-values-panel">
+                    <h2>Predicted H(s,a)</h2>
+                    <canvas id="action-values-canvas" width="280" height="80"></canvas>
+                    <div id="tetris-thumbnails-container" style="display: none;"></div>
+                </div>
+
+                <div class="panel instructions">
+                    <h2>Keyboard Shortcuts</h2>
+                    <div class="key-columns">
+                        <div><span class="key">/</span> +1 reward</div>
+                        <div><span class="key">z</span> -1 reward</div>
+                        <div><span class="key">?</span> +10 reward</div>
+                        <div><span class="key">shift+z</span> -10</div>
+                        <div><span class="key">Space</span> Toggle train</div>
+                        <div><span class="key">2</span> Start/Pause</div>
+                        <div><span class="key">1</span> Single step</div>
+                        <div><span class="key">+/-</span> Speed</div>
+                        <div><span class="key">m</span> Toggle manual</div>
+                    </div>
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #eee;">
+                        <div style="font-weight: 500; margin-bottom: 4px; color: #333;">Manual Control (press m to toggle):</div>
+                        <div id="manual-keys-info" class="key-columns">
+                            <div><span class="key">← / J</span> Left</div>
+                            <div><span class="key">→ / L</span> Right</div>
+                            <div><span class="key">↑ / I</span> Up</div>
+                            <div><span class="key">↓ / K</span> Down/None</div>
+                        </div>
+                        <div id="manual-env-note" style="font-size: 10px; color: #888; margin-top: 4px;">
+                            (All 4 directions for Loop Maze/Robot Arm)
+                        </div>
+                    </div>
+                    <p style="margin: 8px 0 0 0; color: #666;">
+                        Press <b>Space</b> to enable training, then <b>/</b> for good moves, <b>z</b> for bad.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Based on the <a href="https://github.com/bradknox/tamerproject" target="_blank">TAMER Project</a> | TAMER: Training an Agent Manually via Evaluative Reinforcement</p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { TamerApp } from './js/main.js?v=28';
+
+        let app;
+
+        // Default timestep durations in ms - from Java TAMER project
+        // Continuous control (mountaincar, cartpole, acrobot, robotarm) use 200ms default
+        // Discrete gridworld (loopmaze) uses 800ms from D05LoopMazeTamer.java
+        // Tetris uses 150ms from TetrisTamerExp.java
+        const DEFAULT_STEP_DURATIONS = {
+            'loopmaze': 800,
+            'mountaincar': 200,
+            'cartpole': 200,
+            'acrobot': 200,
+            'tetris': 150,
+            'robotarm': 200
+        };
+
+        function initApp(envName, useDefaultDuration = true) {
+            if (app) {
+                app.stop();
+            }
+
+            // Clear canvas before creating new app to prevent flashing
+            const canvas = document.getElementById('game-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Reset manual control mode to TAMER when switching environments
+            const modeIndicator = document.getElementById('mode-indicator');
+            if (modeIndicator) {
+                modeIndicator.textContent = 'Mode: TAMER';
+                modeIndicator.className = 'mode-tamer';
+            }
+
+            // Get default duration for this environment
+            const defaultDuration = DEFAULT_STEP_DURATIONS[envName] || 500;
+
+            // Update slider to environment's default when switching environments
+            if (useDefaultDuration) {
+                document.getElementById('speed-slider').value = defaultDuration;
+                updateSpeedIndicator(defaultDuration);
+            }
+
+            const stepDuration = useDefaultDuration ? defaultDuration : parseFloat(document.getElementById('speed-slider').value);
+
+            app = new TamerApp('game-canvas', {
+                environment: envName,
+                stepDurationMs: stepDuration
+            });
+
+            app.onStep(() => updateStats());
+            app.onEpisodeEnd((stats) => console.log('Episode ended:', stats));
+            app.onReward((reward) => {
+                updateStats();
+                const indicator = document.getElementById('reward-indicator');
+                indicator.textContent = reward > 0 ? `+${reward} reward given!` : `${reward} reward given!`;
+                setTimeout(() => {
+                    indicator.textContent = 'Press / for +reward, z for -reward';
+                }, 400);
+            });
+
+            updateStats();
+            updateManualKeysDisplay(envName);
+        }
+
+        function updateSpeedIndicator(speed) {
+            let speedText;
+            if (speed < 0.01) {
+                speedText = speed.toFixed(3);
+            } else if (speed < 1) {
+                speedText = speed.toFixed(2);
+            } else if (speed < 10) {
+                speedText = speed.toFixed(1);
+            } else {
+                speedText = Math.round(speed).toString();
+            }
+            document.getElementById('speed-indicator').textContent = `${speedText}ms`;
+        }
+
+        function updateStats() {
+            const stats = app.getStats();
+            document.getElementById('episode-count').textContent = stats.totalEpisodes;
+            document.getElementById('step-count').textContent = stats.stepsThisEp;
+            document.getElementById('positive-rewards').textContent = stats.rewardsGiven.positive;
+            document.getElementById('negative-rewards').textContent = stats.rewardsGiven.negative;
+
+            // Update mode indicator
+            const modeIndicator = document.getElementById('mode-indicator');
+            if (modeIndicator) {
+                modeIndicator.textContent = stats.isManualMode ? 'Mode: Manual' : 'Mode: TAMER';
+                modeIndicator.className = stats.isManualMode ? 'mode-manual' : 'mode-tamer';
+            }
+        }
+
+        // Update manual control keys display based on environment
+        function updateManualKeysDisplay(envName) {
+            const keysInfo = document.getElementById('manual-keys-info');
+            const envNote = document.getElementById('manual-env-note');
+            const toggleBtn = document.getElementById('mode-toggle-btn');
+
+            if (!keysInfo || !envNote) return;
+
+            if (envName === 'tetris') {
+                keysInfo.innerHTML = '<div style="color: #888; font-style: italic;">Not available for Tetris</div>';
+                envNote.textContent = '(Tetris uses extended actions)';
+                if (toggleBtn) toggleBtn.disabled = true;
+            } else if (envName === 'cartpole') {
+                keysInfo.innerHTML = `
+                    <div><span class="key">← / J</span> Push Left</div>
+                    <div><span class="key">→ / L</span> Push Right</div>
+                `;
+                envNote.textContent = '(Only ←/→ for Cart Pole)';
+                if (toggleBtn) toggleBtn.disabled = false;
+            } else if (envName === 'mountaincar' || envName === 'acrobot') {
+                keysInfo.innerHTML = `
+                    <div><span class="key">← / J</span> Left/CCW</div>
+                    <div><span class="key">↓ / K</span> Neutral</div>
+                    <div><span class="key">→ / L</span> Right/CW</div>
+                `;
+                const name = envName === 'mountaincar' ? 'Mountain Car' : 'Acrobot';
+                envNote.textContent = `(←/↓/→ for ${name}, no ↑)`;
+                if (toggleBtn) toggleBtn.disabled = false;
+            } else {
+                // Loop Maze, Robot Arm - 4 directions
+                keysInfo.innerHTML = `
+                    <div><span class="key">← / J</span> Left</div>
+                    <div><span class="key">→ / L</span> Right</div>
+                    <div><span class="key">↑ / I</span> Up</div>
+                    <div><span class="key">↓ / K</span> Down</div>
+                `;
+                envNote.textContent = '(All 4 directions)';
+                if (toggleBtn) toggleBtn.disabled = false;
+            }
+        }
+
+        initApp('loopmaze');
+
+        document.getElementById('environment-select').addEventListener('change', (e) => {
+            initApp(e.target.value);
+        });
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            if (app.running) {
+                app.pause();
+                document.getElementById('start-btn').textContent = 'Start (2)';
+            } else {
+                app.start();
+                document.getElementById('start-btn').textContent = 'Pause (2)';
+            }
+        });
+
+        document.getElementById('step-btn').addEventListener('click', () => {
+            if (!app.running) {
+                app._singleStep();
+                updateStats();
+            }
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            app.reset();
+            document.getElementById('start-btn').textContent = 'Start (2)';
+            updateStats();
+        });
+
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            const speed = parseFloat(e.target.value);
+            app.setStepDuration(speed);
+            updateSpeedIndicator(speed);
+        });
+
+        document.getElementById('mode-toggle-btn').addEventListener('click', () => {
+            const result = app.toggleManualControlMode();
+            // Show feedback if Tetris (manual control not supported)
+            if (result === false && document.getElementById('environment-select').value === 'tetris') {
+                const indicator = document.getElementById('mode-indicator');
+                const originalText = indicator.textContent;
+                indicator.textContent = 'Manual control not supported for Tetris';
+                indicator.style.color = '#f44336';
+                setTimeout(() => {
+                    indicator.textContent = originalText;
+                    indicator.style.color = '';
+                }, 2000);
+            }
+            updateStats();
+        });
+
+        setInterval(() => {
+            document.getElementById('start-btn').textContent = app.running ? 'Pause (2)' : 'Start (2)';
+        }, 100);
+    </script>
+</body>
+</html>
