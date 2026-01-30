@@ -378,9 +378,7 @@ export class TamerApp {
             case 'm':
                 // Toggle manual control mode
                 event.preventDefault();
-                console.log('m pressed, manualControlMode:', this.manualControlMode, 'training:', this.agent.isTraining());
                 this.toggleManualControlMode();
-                console.log('after toggle, manualControlMode:', this.manualControlMode);
                 break;
 
             // Manual control keys - EXACT from Java ImitationAgent
@@ -1340,24 +1338,16 @@ export class TamerApp {
             return false;
         }
 
-        console.log('setManualControlMode called with:', enabled, 'current training:', this.agent.isTraining());
-
         // Manual mode and training are mutually exclusive
         // Turn off training first if needed
         if (enabled && this.agent.isTraining()) {
-            console.log('Turning off training because entering manual mode');
-            try {
-                this.agent.setTraining(false);
-                this._updateTrainingIndicator(false);
-            } catch (e) {
-                console.error('Error turning off training:', e);
-            }
+            this.agent.setTraining(false);
+            this._updateTrainingIndicator(false);
         }
 
         this.manualControlMode = enabled;
         this.lastUserActI = -1;  // Reset user action
         this._updateModeIndicator(enabled);
-        console.log('Manual mode now:', this.manualControlMode);
         return true;
     }
 

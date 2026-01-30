@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TAMER Demonstrations v28</title>
-    <link rel="stylesheet" href="css/style.css?v=28">
+    <title>TAMER Demonstrations</title>
+    <link rel="stylesheet" href="css/style.css?v=29">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>TAMER Demonstrations v28</h1>
+            <h1>TAMER Demonstrations</h1>
             <p>Training an Agent Manually via Evaluative Reinforcement</p>
         </header>
 
@@ -38,6 +38,9 @@
                     </div>
                     <div style="margin-top: 8px;">
                         <div id="reward-indicator">Press / for +reward, z for -reward</div>
+                    </div>
+                    <div id="tetris-feedback-note" style="display: none; margin-top: 8px; padding: 8px; background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 0 4px 4px 0; font-size: 11px; line-height: 1.4;">
+                        <strong>Tetris tip:</strong> Give feedback for the <em>prior</em> piece placement. Do not give feedback for the piece currently in motion, which TAMER will misinterpret.
                     </div>
                     <div style="margin-top: 6px; display: flex; align-items: center; gap: 10px;">
                         <span id="training-indicator" class="training-off">Training: OFF</span>
@@ -114,11 +117,12 @@
 
         <footer>
             <p>Based on the <a href="https://github.com/bradknox/tamerproject" target="_blank">TAMER Project</a> | TAMER: Training an Agent Manually via Evaluative Reinforcement</p>
+            <p style="font-size: 9px; color: #999;">v1.0</p>
         </footer>
     </div>
 
     <script type="module">
-        import { TamerApp } from './js/main.js?v=28';
+        import { TamerApp } from './js/main.js?v=29';
 
         let app;
 
@@ -181,6 +185,12 @@
 
             updateStats();
             updateManualKeysDisplay(envName);
+
+            // Show/hide Tetris feedback note
+            const tetrisNote = document.getElementById('tetris-feedback-note');
+            if (tetrisNote) {
+                tetrisNote.style.display = envName === 'tetris' ? 'block' : 'none';
+            }
         }
 
         function updateSpeedIndicator(speed) {

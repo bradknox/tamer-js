@@ -1,65 +1,80 @@
 # TAMER Web
 
-TAMER Web is a JavaScript port of **TAMER**—*Training an Agent Manually via Evaluative Reinforcement*—meant for **interactive agent training directly in a web browser**. The goal is to keep the core ideas and mechanics faithful to the original TAMER codebase (in Java), while making it dramatically easier to run demos, teach, and iterate.
+TAMER Web is a JavaScript port of **TAMER**—*Training an Agent Manually via Evaluative Reinforcement*—meant for **interactive agent training directly in a web browser**. The goal is to keep the core ideas and mechanics faithful to the original Java TAMER codebase, while making it possible again to run demos and experiments online through people's browsers.
+
+This port was created using Claude Code, with oversight and testing by TAMER's creator, Brad Knox.
 
 If you are looking for the original Java implementation, see: [https://github.com/bradknox/tamerproject](https://github.com/bradknox/tamerproject)
 
 ## What TAMER is
 
-TAMER is a framework for training an agent from **human evaluative feedback**: a person watches the agent act and provides quick scalar feedback (approval/disapproval). Rather than relying on a hand-coded reward function from the environment, the agent learns a predictive model of what feedback it will receive for candidate actions, and then uses that model to decide what to do.
+TAMER is a framework for training an agent from **numeric feedback from a human**: a person watches the agent act and provides quick scalar feedback (approval/disapproval). Rather than relying on a hand-coded reward function from the environment, the agent learns a predictive model of what feedback it will receive for candidate actions, and then uses that model to decide what to do.
 
-This approach is an early version of what is now commonly called **reinforcement learning from human feedback** (RLHF), reinforcement learning where the learning signal is provided by human judgments rather than an environment’s built-in scoring rule. ATAMER was the first *general-purpose* end-to-end framework in this space: not a one-off solution for a single domain, but a reusable approach with a full algorithmic story and working systems.
+## Historic context
 
-## Myopically pursuing near-term approval
+This approach is an early version of what is now commonly called **reinforcement learning from human feedback** (RLHF), reinforcement learning where the learning signal is provided by human judgments of an agent's behavior. RLHF as a problem class contrasts with methods such as traditional reinforcement learning (RL), using an environment’s built-in scoring rule for feedback, and imitation learning (IL), using demonstrations of desirable behavior. TAMER was the first *general-purpose* RLHF framework, applicable to the same tasks that RL and IL might be applied to. TAMER has been successfully applied to at least 10 different tasks by its original designers and others who have built upon it.
+
+### Myopically pursuing near-term approval
 
 A key design choice in TAMER is how it interprets the human’s feedback.
 
-If you treat human feedback as if it were ordinary reinforcement-learning reward---as we did very early on—--it generally does not work well. Instead, TAMER treats feedback as the human’s *full judgment of the long-term desirability of the agent’s recent behavior*. Under that assumption, the agent can be **myopic** in a principled way: it can simply choose actions that maximize predicted human approval, without explicitly planning far into the future.
+If an algorithm treats human feedback as if it were ordinary reinforcement-learning reward that be used for evaluation only in its accumulation (i.e., return)---as we did early on in initial development—--it generally does not work well. Instead, TAMER treats feedback as the human’s *full judgment of the long-term desirability of the agent’s recent behavior*. Under that assumption, the agent can be **myopic** in a principled way: it can simply choose actions that maximize predicted human approval, without explicitly planning far into the future.
 
 TAMER's algorithm learns a function that predicts what feedback the human would give, and the agent greedily chooses the action with the highest predicted value.
 
-## Myopia in RLHF for LLMs
+In later work, we found that other early RLHF algorithms had been unintentionally tuned to be highly myopic through unusually agressive discounting of future reward (Knox et al., 2015). This characteristic had gone unnoticed even by their designers. Correspondingly, they often did not publish the discount factors in the corresponding research publications, though they graciously provided them by email to Knox. 
+
+### Myopia in RLHF for LLMs
 
 Contemporary RLHF for LLM fine-tuning is quite similar, trading the scalar feedback for preferences: humans compare or rate *whole* model responses, a reward model is trained to predict those judgments, and the policy is trained to maximize the reward model’s score.
 
-Even though language models are trained for multi-turn interaction, a sequential decision-making problem, the learned reward model's output is optimized myopically, as "bandit reward" as ____ put it. In line with the TAMER framing, that scalar is not “environment reward” in the classical sense; it is a compact human judgment that already bakes in long-horizon considerations.
+Even though language models are trained for multi-turn interaction, a sequential decision-making problem, the learned reward model's output is optimized myopically, in a "bandit environment" as Ouyang et al. (2022) put it in their seminal paper on InstructGPT. In line with the TAMER framing, that scalar is not “environment reward” in the classical RL sense; it is a compact human judgment that already bakes in long-horizon considerations.
 
-## TAMER+RL and “warm starts” from human feedback
+### TAMER+RL and “warm starts” from human feedback
 
-In follow-up work (often referred to as **TAMER+RL**), we explored how to combine:
+In follow-up work on **TAMER+RL**, we explored how to combine:
 
 * **human feedback**, which is information-rich but imperfect, and
-* an environment’s **Markov decision process reward** (a task’s built-in scoring signal), which can be perfectly consistent but often incomplete or poorly shaped.
+* an environment’s **Markov decision process reward** (a task’s built-in scoring signal), which perfectly describes desirable behavior in the task, assuming return is the performance metric, but often is sample inefficient or even intractable to learn from.
 
-One useful pattern that falls out of this line of work is a kind of *warm start*: use human feedback to quickly get competent behavior, then let autonomous reinforcement learning take over (or blend the two signals) to refine performance.
+One useful method that arose from the TAMER+RL work is a *warm start*: use human feedback to quickly get competent behavior, then let autonomous reinforcement learning take over (or blend the two signals) to refine performance. Building on the first TAMER+RL paper, Taylor et al. (2011) extended the concept of warm starts from RLHF to imitation learning, using human demonstrations to initialize a policy before learning from hard-coded environment reward.
 
-That general template—bootstrap from human data, then improve with reinforcement learning—later became a standard recipe in several high-profile systems (with different technical details), including pipelines that start from supervised learning on human data before switching to reinforcement learning.
+This warm start method—bootstrap from human data, then improve with reinforcement learning—later became a common recipe in several high-profile algorithms such as AlphaGo (Silver et al. 2016), including pipelines that start from supervised learning on human data before switching to reinforcement learning.
 
-## What this repository is (and is not)
+## Relative strengths and weaknesses of TAMER
 
-This repo is intended to be:
+Strengths:
+* Human trainers are giving their feedback live and immediately see the agent learn from it. This tightly interactive dynamic can make training a TAMER agent quite engaging, but it also allows the human trainer to learn to teach better by observing the effects of their feedback.
+* Compared to standard behavior cloning (BC, the most common form of imitation learning), TAMER and other RLHF methods allow human labeling of states that the current policy visits, avoiding BC's problem of distribution shift that was made famous by the DAgger work by Ross et al.
+* In comparison to traditional RL, learning from human input—whether preferences, scalar feedback, or demonstrations—leverages human knowledge about how to perform well at a sequential task. Contemporary LLM pipelines show this well, where demonstrations and preferences were the primary source of training data from ChatGPT until the introduction of thinking and reasoning LLMs, at which point RL from hard-coded reward was added to these forms of direct human input (and LLM-based simulations of that input).
+
+Weaknesses:
+* Giving feedback live introduces the need for TAMER's credit assignment, which cannot perfectly ascertain what actions the feedback targets. 
+* When the action space is larger (i.e., the agent must choose from many actions), demonstrations allow singling out a single desired action. In contrast, TAMER and other RLHF methods involve feedback on whatever action(s) are taken (either live by the agent or in a dataset, as is the typical case for preference-based RLHF), resulting in a search over the large action space, a search that is sensitive to generalization.
+
+## What this repository is
 
 * a **browser-native** implementation of the TAMER loop (human feedback → learned predictor → action selection),
-* suitable for **interactive demos, teaching, and experimentation**, and
-* a **faithful port** where it matters (algorithmic minutia and the agent–human interaction loop).
+* suitable for **interactive demos, teaching, and online experimentation**, and
+* a **faithful port** where it matters (including algorithmic minutia and the agent–human interaction loop).
 
-This repo is not intended to be:
-
-* a production RLHF library for training large models, or
-* a claim that TAMER and today’s RLHF pipelines are “the same algorithm” (they are not); the connection is conceptual and structural.
+This repo is not intended to be a production RLHF library for training large models.
 
 ## References
 
-Primary TAMER / TAMER+RL papers:
+Referenced TAMER / TAMER+RL papers:
 
 * Knox, W. B. & Stone, P. **“TAMER: Training an Agent Manually via Evaluative Reinforcement.”** (ICDL 2008). [https://www.cs.utexas.edu/~bradknox/papers/icdl08-knox.pdf](https://www.cs.utexas.edu/~bradknox/papers/icdl08-knox.pdf)
 * Knox, W. B. & Stone, P. **“Combining Manual Feedback with Subsequent MDP Reward Signals for Reinforcement Learning.”** (AAMAS 2010). [https://www.cs.utexas.edu/~bradknox/papers/aamas10-knox.pdf](https://www.cs.utexas.edu/~bradknox/papers/aamas10-knox.pdf)
 * Knox, W. B. & Stone, P. **“Reinforcement Learning from Simultaneous Human and MDP Reward.”** (AAMAS 2012). [https://www.cs.utexas.edu/~pstone/Papers/bib2html-links/AAMAS12-knox.pdf](https://www.cs.utexas.edu/~pstone/Papers/bib2html-links/AAMAS12-knox.pdf)
+* Knox, W. B. & Stone, P. **“Framing Reinforcement Learning from Human Reward: Reward Positivity, Temporal Discounting, Episodicity, and Performance.”** *Artificial Intelligence*, 225, 24–50. (August 2015). [https://doi.org/10.1016/j.artint.2015.03.002](https://doi.org/10.1016/j.artint.2015.03.002)
 
-Representative modern RLHF examples:
+
+Other citations:
 
 * Ouyang, L. et al. **“Training language models to follow instructions with human feedback.”** (InstructGPT, 2022). [https://arxiv.org/abs/2203.02155](https://arxiv.org/abs/2203.02155)
 * Silver, D. et al. **“Mastering the game of Go with deep neural networks and tree search.”** (AlphaGo, 2016). [https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf)
+* Taylor, M. E., Suay, H. B. & Chernova, S. **“Integrating Reinforcement Learning with Human Demonstrations of Varying Ability.”** (AAMAS 2011). [https://www.ifaamas.org/Proceedings/aamas2011/papers/A5_R61.pdf](https://www.ifaamas.org/Proceedings/aamas2011/papers/A5_R61.pdf)
 
 
 ## Live Demo
@@ -96,7 +111,7 @@ Use nginx, Apache, or any other static file server pointing to the `tamer-web` d
 3. **Press "Start"** or the **2** key to begin the simulation
 4. **Give feedback** to the agent as it acts:
    - Press **/** or **.** for positive reward (+1) when the agent does something good
-   - Press **Z** for negative reward (-1) when the agent does something bad
+   - Press **z** for negative reward (-1) when the agent does something bad
 5. **Watch the agent learn** from your feedback in real-time!
 
 The agent learns a model of your preferences and adjusts its behavior to maximize the feedback you provide.
@@ -106,7 +121,7 @@ The agent learns a model of your preferences and adjusts its behavior to maximiz
 | Key | Action |
 |-----|--------|
 | `/` or `.` | Positive reward (+1) |
-| `Z` | Negative reward (-1) |
+| `z` | Negative reward (-1) |
 | `?` | Strong positive (+10) |
 | `Shift+Z` | Strong negative (-10) |
 | `Space` | Toggle training mode |
@@ -127,9 +142,16 @@ You can also control the agent directly to demonstrate desired behavior:
 | `↑` or `I` | Up (4-action environments only) |
 | `↓` or `K` | Down / Neutral |
 
-Click "Toggle Manual" to switch between TAMER mode (agent chooses actions) and Manual mode (you control the agent).
+Press `m` or click "Toggle Manual" to switch between TAMER mode (agent chooses actions) and Manual mode (you control the agent). Manual mode and training are mutually exclusive.
 
 ## Environments
+
+### Tetris
+The classic tile-matching game. The agent chooses piece placements (extended actions consisting of rotations and movements). Train the agent to clear lines efficiently!
+
+**Actions:** Extended actions (piece placements)
+
+**Note:** Manual control is not available for Tetris due to its use of extended actions.
 
 ### Loop Maze
 A simple gridworld navigation task. The agent must navigate from the start position to the goal. There's a short path and a long path around a loop—train the agent to take the short path!
@@ -151,23 +173,22 @@ A two-link robot arm that must swing up to reach a target height. Only the joint
 
 **Actions:** 3 (Torque Left, None, Torque Right)
 
+**Note:** Acrobot is a difficult task to teach by TAMER. Only expect to be able to effectively train a TAMER agent in Acrobot if you already know how to effectively control the acrobot.
+
 ### Robot Arm
 A simple 2D robot arm that must reach target positions.
 
 **Actions:** 4 directions
 
-### Tetris
-The classic tile-matching game. The agent chooses piece placements (extended actions consisting of rotations and movements). Train the agent to clear lines efficiently!
+**Note:** Robot Arm is a difficult task to teach by TAMER. Only expect to be able to effectively train a TAMER agent in Robot Arm if you already know how to effectively control the robot arm.
 
-**Actions:** Extended actions (piece placements)
-
-**Note:** Manual control is not available for Tetris due to its use of extended actions.
 
 ## Architecture
 
 ```
 tamer-web/
-├── index.html                 # Main application with environment selector
+├── index.html                 # Intro/landing page with instructions
+├── app.html                   # Main application with environment selector
 ├── css/
 │   └── style.css              # Application styles
 ├── js/
@@ -214,9 +235,9 @@ tamer-web/
 
 The TAMER algorithm learns a model of human reward preferences Ĥ(s,a):
 
-1. **Feature Generation**: Radial Basis Functions (RBFs) create features from state-action pairs. The number of basis functions per dimension is environment-specific (e.g., 40 for Mountain Car, 8 for Cart Pole).
+1. **Feature Generation**: State-action pairs are converted to feature vectors. This implementation uses Radial Basis Functions (RBFs) for continuous-state environments and hand-crafted features for Tetris. The Java codebase supports additional feature generators including tile coding and neural networks.
 
-2. **Credit Assignment**: Human feedback is distributed over recent state-action pairs using a temporal credit window, accounting for human reaction time delay.
+2. **Credit Assignment**: Human feedback is distributed over recent state-action pairs using a temporal credit window, accounting for human reaction time delay. Tetris uses a simpler "previous step" credit assignment since feedback applies to discrete piece placements.
 
 3. **Model Learning**: A linear model is updated via stochastic gradient descent on the credited feedback.
 
@@ -233,7 +254,7 @@ The TAMER algorithm learns a model of human reward preferences Ĥ(s,a):
 ### Performance Optimizations
 
 - **Fast Exp Approximation**: Uses Schraudolph (1999) algorithm for ~2.5x faster RBF computation
-- **Adaptive Loop Strategy**: Automatically switches between requestAnimationFrame (≥16ms steps) and setTimeout (<16ms steps) for optimal performance at any simulation speed
+- **Adaptive Loop Strategy**: At normal speeds (≥16ms/step), renders every frame using requestAnimationFrame. At fast speeds (<16ms/step), runs multiple simulation steps per screen refresh and only renders the most recent state, allowing speeds up to thousands of steps per second.
 
 ## Differences from Java Version
 
@@ -242,7 +263,7 @@ This port aims to be functionally equivalent to the Java version. Key implementa
 - Uses JavaScript's native `Math` functions with Schraudolph fast exp approximation
 - Rendering is handled via HTML5 Canvas instead of Java Swing
 - All timing is based on `performance.now()` for high-resolution timestamps
-- Environment parameters match the Java defaults exactly
+- Environment parameters should match the Java defaults exactly
 
 ## Running Tests
 
@@ -260,16 +281,10 @@ The Java project includes additional features such as:
 - Additional environments and experimental configurations
 - TAMER+RL agents that combine human feedback with environmental rewards
 
-## References
-
-- Knox, W. B., & Stone, P. (2009). Interactively shaping agents via human reinforcement: The TAMER framework. *KCAP*.
-- Knox, W. B., & Stone, P. (2010). Combining manual feedback with subsequent MDP reward signals for reinforcement learning. *AAMAS*.
-- Knox, W. B., & Stone, P. (2012). Reinforcement learning from simultaneous human and MDP reward. *AAMAS*.
-
 ## License
 
 This project is released under the Apache License 2.0, the same license as the original TAMER project.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues and pull requests.
+We are not anticipating accepting contributions, since this project is meant to exhibit past research implementations of the TAMER. That said, if you're the author of a peer-reviewed publication that implements a version of TAMER and want your work exhibited here as well, reach out.
