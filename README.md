@@ -1,3 +1,5 @@
+Try TAMER yourself at [https://bradknox.net/tamer-web/app.html](https://bradknox.net/tamer-web/app.html).
+
 # TAMER Web
 
 TAMER Web is a JavaScript port of **TAMER**—*Training an Agent Manually via Evaluative Reinforcement*—meant for **interactive agent training directly in a web browser**. The goal is to keep the core ideas and mechanics faithful to the original Java TAMER codebase, while making it possible again to run demos and experiments online through people's browsers.
