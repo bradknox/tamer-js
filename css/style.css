@@ -342,13 +342,52 @@ header p {
     align-self: stretch;
 }
 
+.env-selector label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+}
+
 .env-selector select {
     width: 100%;
-    padding: 8px;
-    font-size: 13px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 500;
     border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: 6px;
     background-color: white;
+    color: #333;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    transition: all 0.3s ease;
+}
+
+.env-selector select:hover {
+    border-color: #999;
+}
+
+.env-selector select:focus {
+    outline: none;
+    border-color: #1976D2;
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+}
+
+/* Highlighted state for first-time users */
+.env-selector select.highlight {
+    border: 2px solid #1976D2;
+    background-color: #f0f7ff;
+    color: #1565C0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231976D2' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+}
+
+.env-selector select.highlight:hover {
+    background-color: #e3f2fd;
+    border-color: #1565C0;
 }
 
 /* Speed display */

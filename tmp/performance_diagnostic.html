@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAMER Performance Diagnostic</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #1e1e1e; color: #d4d4d4; }
+        h1 { color: #569cd6; }
+        h2 { color: #4ec9b0; margin-top: 30px; }
+        .result { margin: 5px 0; padding: 5px; background: #2d2d2d; }
+        .fast { color: #4ec9b0; }
+        .medium { color: #dcdcaa; }
+        .slow { color: #f14c4c; }
+        button { margin: 10px 5px; padding: 10px 20px; cursor: pointer; }
+        pre { background: #2d2d2d; padding: 10px; overflow: auto; }
+        #output { white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>TAMER Performance Diagnostic</h1>
+
+    <div>
+        <button onclick="runMountainCarDiagnostic()">Run Mountain Car Diagnostic</button>
+        <button onclick="runTetrisDiagnostic()">Run Tetris Diagnostic</button>
+        <button onclick="runFullStepDiagnostic()">Run Full Step Diagnostic</button>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+
+    <pre id="output"></pre>
+
+    <script type="module">
+        import { TamerApp, TamerAgent, MountainCar, Tetris, RobotArm, LoopMaze, CartPole } from '../js/main.js?v=27';
+        import { RBFFeatures } from '../js/features/RBFFeatures.js';
+        import { TetrisFeatures } from '../js/features/TetrisFeatures.js?v=9';
+        import { ExtActionAgentWrap } from '../js/agents/ExtActionAgentWrap.js?v=9';
+
+        const output = document.getElementById('output');
+
+        function log(msg) {
+            output.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        function clearOutput() {
+            output.textContent = '';
+        }
+        window.clearOutput = clearOutput;
+
+        function formatTime(ms) {
+            if (ms < 0.01) return `${(ms * 1000).toFixed(2)} us`;
+            if (ms < 1) return `${ms.toFixed(3)} ms`;
+            return `${ms.toFixed(1)} ms`;
+        }
+
+        function benchmark(name, fn, iterations = 100) {
+            // Warmup
+            for (let i = 0; i < 10; i++) fn();
+
+            const times = [];
+            for (let i = 0; i < iterations; i++) {
+                const start = performance.now();
+                fn();
+                times.push(performance.now() - start);
+            }
+
+            times.sort((a, b) => a - b);
+            const avg = times.reduce((a, b) => a + b, 0) / times.length;
+            const median = times[Math.floor(times.length / 2)];
+            const min = times[0];
+            const max = times[times.length - 1];
+            const p95 = times[Math.floor(times.length * 0.95)];
+
+            const color = avg < 0.5 ? 'fast' : avg < 2 ? 'medium' : 'slow';
+            log(`  ${name}:`);
+            log(`    avg=${formatTime(avg)}, median=${formatTime(median)}, min=${formatTime(min)}, max=${formatTime(max)}, p95=${formatTime(p95)}`);
+
+            return { avg, median, min, max, p95 };
+        }
+
+        // ==================== MOUNTAIN CAR DIAGNOSTIC ====================
+        window.runMountainCarDiagnostic = function() {
+            log('\n========== MOUNTAIN CAR DIAGNOSTIC ==========\n');
+
+            // Create environment
+            const env = new MountainCar();
+            const envSpec = env.init();
+            log(`Environment: MountainCar`);
+            log(`  Observation dims: ${envSpec.obsRanges.length}`);
+            log(`  Actions: ${envSpec.numActions}`);
+
+            // Create RBF features with TAMER's settings (40 per dim)
+            const featGen = new RBFFeatures(
+                envSpec.obsRanges,
+                envSpec.numActions,
+                40,  // basisFcnsPerDim
+                0.08  // relWidth
+            );
+            featGen.setNormBounds(-1, 1);
+            featGen.setBiasFeatPerAct(0.1);
+
+            log(`\nRBF Features:`);
+            log(`  Basis functions per dim: 40`);
+            log(`  Total RBF means: ${featGen.means.length}`);
+            log(`  Features per action: ${featGen.featsPerAction}`);
+            log(`  Total features: ${featGen.numFeatures}`);
+
+            // Start episode
+            const obs = env.start();
+            log(`\nStarting observation: [${obs.map(v => v.toFixed(4)).join(', ')}]`);
+
+            // Benchmark individual operations
+            log('\n--- Individual Operation Benchmarks (100 iterations) ---');
+
+            // 1. getStateActionFeatures
+            benchmark('getStateActionFeatures (1 action)', () => {
+                featGen.getStateActionFeatures(obs, 0);
+            });
+
+            // 2. All actions features
+            benchmark('getStateActionFeatures (all 3 actions)', () => {
+                for (let a = 0; a < 3; a++) {
+                    featGen.getStateActionFeatures(obs, a);
+                }
+            });
+
+            // 3. Squared distance calculation (inner loop)
+            const testMean = featGen.means[0];
+            benchmark('_getSqrdEucDist (single mean)', () => {
+                featGen._getSqrdEucDist(testMean, obs);
+            }, 1000);
+
+            // 4. Environment step
+            benchmark('env.step()', () => {
+                env.step(Math.floor(Math.random() * 3));
+            });
+
+            // 5. Create TamerAgent
+            log('\n--- TamerAgent Operations ---');
+            const agent = new TamerAgent(env, {
+                basisFcnsPerDim: 40,
+                stepSize: 0.05,
+                creditDelayMs: 200,
+                creditWindowMs: 600
+            });
+            agent.startEpisode();
+
+            benchmark('agent.selectAction()', () => {
+                agent.selectAction(obs);
+            });
+
+            benchmark('agent.step() (full step)', () => {
+                agent.step(performance.now());
+            });
+
+            benchmark('hLearner.predictAllActions()', () => {
+                agent.hLearner.predictAllActions(obs, 3);
+            });
+
+            // 6. Model prediction
+            const feats = featGen.getStateActionFeatures(obs, 0);
+            benchmark('model.predict()', () => {
+                agent.model.predict(feats);
+            }, 1000);
+
+            // 7. Math.exp benchmarks
+            log('\n--- Math Operations (10000 iterations) ---');
+            benchmark('Math.exp() single', () => {
+                Math.exp(-0.5);
+            }, 10000);
+
+            benchmark('Math.exp() x1600 (like RBF)', () => {
+                for (let i = 0; i < 1600; i++) {
+                    Math.exp(-0.5 * i / 100);
+                }
+            }, 100);
+
+            log('\n--- Summary ---');
+            const totalStepTime = benchmark('Full agent.step() cycle', () => {
+                agent.step(performance.now());
+            }, 50);
+
+            log(`\nMax theoretical step frequency: ${(1000 / totalStepTime.avg).toFixed(0)} steps/sec`);
+            log(`Min step duration needed: ${formatTime(totalStepTime.avg)}`);
+        };
+
+        // ==================== TETRIS DIAGNOSTIC ====================
+        window.runTetrisDiagnostic = function() {
+            log('\n========== TETRIS DIAGNOSTIC ==========\n');
+
+            // Create environment
+            const env = new Tetris();
+            const envSpec = env.init();
+            log(`Environment: Tetris`);
+            log(`  Observation length: ${envSpec.obsRanges.length}`);
+            log(`  Atomic actions: ${envSpec.numActions}`);
+
+            // Create TetrisFeatures
+            const featGen = new TetrisFeatures(envSpec.obsRanges, envSpec.numActions);
+            log(`\nTetris Features:`);
+            log(`  State features: ${TetrisFeatures.NUM_FEATS}`);
+
+            // Start episode
+            const obs = env.start();
+            log(`\nStarting observation length: ${obs.length}`);
+
+            // Benchmark individual operations
+            log('\n--- Individual Operation Benchmarks ---');
+
+            // 1. setStateFromObs
+            benchmark('setStateFromObs()', () => {
+                featGen.setStateFromObs(obs);
+            });
+
+            // 2. getPossActions (tree search)
+            let placements;
+            const getPossResult = benchmark('getPossActions() [tree search]', () => {
+                placements = featGen.getPossActions(obs);
+            }, 20);
+            log(`    Found ${placements.length} placements`);
+
+            // 3. getSAFeats for single placement
+            const firstPlacement = placements[0];
+            benchmark('getSAFeats() [single placement]', () => {
+                featGen.getSAFeats(obs, firstPlacement.actList);
+            });
+
+            // 4. getSAFeats for ALL placements (like predictExtendedActions)
+            benchmark(`getSAFeats() x${placements.length} [all placements]`, () => {
+                for (const p of placements) {
+                    featGen.getSAFeats(obs, p.actList);
+                }
+            }, 20);
+
+            // 5. _putSFeatsInArray (feature computation)
+            const featsArray = new Float64Array(46);
+            benchmark('_putSFeatsInArray()', () => {
+                featGen._putSFeatsInArray(obs, featsArray);
+            });
+
+            // 6. getSSFeats (state difference)
+            benchmark('getSSFeats()', () => {
+                featGen.getSSFeats(obs, obs);
+            });
+
+            // 7. Environment step
+            benchmark('env.step()', () => {
+                env.step(Math.floor(Math.random() * 5));
+            });
+
+            // 8. Full agent with ExtActionAgentWrap
+            log('\n--- ExtActionAgentWrap Operations ---');
+            const agent = new ExtActionAgentWrap(env, {
+                coreAgentClass: TamerAgent,
+                coreAgentOptions: {
+                    FeatGenClass: TetrisFeatures,
+                    epsilon: 0.0,
+                    stepSize: 0.000005 / 47,
+                    creditDistType: 'previousStep'
+                }
+            });
+            agent.init();
+            agent.startEpisode();
+
+            benchmark('agent.getActionValues()', () => {
+                agent.getActionValues();
+            }, 20);
+
+            benchmark('coreAgent._selectExtendedAction()', () => {
+                agent.coreAgent._selectExtendedAction(obs);
+            }, 20);
+
+            // Time breakdown for selectExtendedAction
+            log('\n--- _selectExtendedAction Breakdown ---');
+            let extActions, predictions;
+
+            const t1 = benchmark('  1. getPossActions()', () => {
+                extActions = featGen.getPossActions(obs);
+            }, 20);
+
+            const t2 = benchmark('  2. predictExtendedActions() [all placements]', () => {
+                predictions = agent.coreAgent.hLearner.predictExtendedActions(obs, extActions);
+            }, 20);
+
+            log(`\n  Total _selectExtendedAction ≈ ${formatTime(t1.avg + t2.avg)}`);
+
+            // Model operations
+            log('\n--- Model Operations ---');
+            const feats = featGen.getSAFeats(obs, firstPlacement.actList);
+            benchmark('model.predict() [46 features]', () => {
+                agent.coreAgent.model.predict(feats);
+            }, 1000);
+
+            log('\n--- Summary ---');
+            const fullStep = benchmark('Full agent.step() cycle', () => {
+                agent.step(performance.now());
+            }, 20);
+
+            log(`\nMax theoretical step frequency: ${(1000 / fullStep.avg).toFixed(0)} steps/sec`);
+            log(`Min step duration needed: ${formatTime(fullStep.avg)}`);
+
+            // Breakdown: how much time is spent where?
+            log('\n--- Time Breakdown per Step ---');
+            const breakdown = {
+                getPossActions: getPossResult.avg,
+                predictAll: t2.avg,
+                envStep: 0.1, // rough estimate
+                other: fullStep.avg - getPossResult.avg - t2.avg - 0.1
+            };
+            log(`  getPossActions: ${formatTime(breakdown.getPossActions)} (${(breakdown.getPossActions/fullStep.avg*100).toFixed(1)}%)`);
+            log(`  predictExtendedActions: ${formatTime(breakdown.predictAll)} (${(breakdown.predictAll/fullStep.avg*100).toFixed(1)}%)`);
+            log(`  env.step: ~${formatTime(breakdown.envStep)}`);
+            log(`  other/overhead: ${formatTime(breakdown.other)}`);
+        };
+
+        // ==================== FULL STEP DIAGNOSTIC ====================
+        window.runFullStepDiagnostic = function() {
+            log('\n========== FULL STEP DIAGNOSTIC (with rendering) ==========\n');
+
+            const envNames = ['loopmaze', 'mountaincar', 'cartpole', 'tetris'];
+
+            for (const envName of envNames) {
+                log(`\n--- ${envName.toUpperCase()} ---`);
+
+                // Create a hidden canvas for testing
+                const canvas = document.createElement('canvas');
+                canvas.id = 'test-canvas-' + envName;
+                canvas.width = 400;
+                canvas.height = 400;
+                canvas.style.display = 'none';
+                document.body.appendChild(canvas);
+
+                try {
+                    const app = new TamerApp('test-canvas-' + envName, {
+                        environment: envName,
+                        stepDurationMs: 1  // Fast
+                    });
+
+                    // Start the app and take some steps
+                    app.agent.startEpisode();
+                    app.totalEpisodes = 1;
+
+                    // Benchmark _doStep
+                    const stepResult = benchmark('_doStep()', () => {
+                        app._doStep(performance.now());
+                    }, 50);
+
+                    // Benchmark _render
+                    const renderResult = benchmark('_render()', () => {
+                        app._render();
+                    }, 50);
+
+                    // Benchmark _renderActionValues
+                    const avResult = benchmark('_renderActionValues()', () => {
+                        app._renderActionValues();
+                    }, 50);
+
+                    const total = stepResult.avg + renderResult.avg;
+                    log(`  TOTAL (step + render): ${formatTime(total)}`);
+                    log(`  Max frequency: ${(1000 / total).toFixed(0)} steps/sec`);
+
+                    // Cleanup
+                    app.stop();
+                } catch (e) {
+                    log(`  ERROR: ${e.message}`);
+                }
+
+                document.body.removeChild(canvas);
+            }
+        };
+
+        log('Performance Diagnostic loaded. Click a button to run tests.');
+    </script>
+</body>
+</html>

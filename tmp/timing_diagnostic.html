@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Timing Mechanism Diagnostic</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #1e1e1e; color: #d4d4d4; }
+        button { margin: 5px; padding: 10px 20px; }
+        pre { background: #2d2d2d; padding: 10px; }
+        .result { padding: 5px; margin: 2px 0; }
+    </style>
+</head>
+<body>
+    <h1>Timing Mechanism Diagnostic</h1>
+    <p>Tests the actual timing mechanisms to see what's limiting step frequency.</p>
+
+    <div>
+        <button onclick="testSetTimeout()">Test setTimeout(0) frequency</button>
+        <button onclick="testRAF()">Test requestAnimationFrame frequency</button>
+        <button onclick="testMixedLoop()">Test Mixed Loop (like _runLoopFast)</button>
+        <button onclick="testPureComputation()">Test Pure Computation</button>
+        <button onclick="clearOutput()">Clear</button>
+    </div>
+
+    <pre id="output"></pre>
+
+    <script type="module">
+        import { TamerApp } from '../js/main.js?v=27';
+
+        const output = document.getElementById('output');
+        function log(msg) { output.textContent += msg + '\n'; }
+        window.clearOutput = function() { output.textContent = ''; };
+
+        // Test 1: How fast can setTimeout(0) actually loop?
+        window.testSetTimeout = function() {
+            log('\n=== setTimeout(0) Frequency Test ===');
+            log('Running 1000 setTimeout(0) calls...\n');
+
+            let count = 0;
+            const maxCount = 1000;
+            const startTime = performance.now();
+            const times = [];
+
+            function loop() {
+                const now = performance.now();
+                if (count > 0) {
+                    times.push(now - times._lastTime);
+                }
+                times._lastTime = now;
+                count++;
+
+                if (count < maxCount) {
+                    setTimeout(loop, 0);
+                } else {
+                    const elapsed = performance.now() - startTime;
+                    const avgInterval = elapsed / maxCount;
+
+                    log(`Total time for ${maxCount} iterations: ${elapsed.toFixed(1)} ms`);
+                    log(`Average interval: ${avgInterval.toFixed(3)} ms`);
+                    log(`Effective frequency: ${(1000 / avgInterval).toFixed(0)} Hz`);
+
+                    // Analyze the intervals
+                    const sorted = times.slice().sort((a, b) => a - b);
+                    log(`\nInterval distribution:`);
+                    log(`  Min: ${sorted[0]?.toFixed(3)} ms`);
+                    log(`  Median: ${sorted[Math.floor(sorted.length/2)]?.toFixed(3)} ms`);
+                    log(`  Max: ${sorted[sorted.length-1]?.toFixed(3)} ms`);
+                    log(`  p95: ${sorted[Math.floor(sorted.length*0.95)]?.toFixed(3)} ms`);
+
+                    log('\nNote: setTimeout(0) typically has a minimum ~4ms delay in browsers');
+                }
+            }
+
+            times._lastTime = performance.now();
+            loop();
+        };
+
+        // Test 2: RAF frequency
+        window.testRAF = function() {
+            log('\n=== requestAnimationFrame Frequency Test ===');
+            log('Running 200 RAF calls (~3 seconds at 60fps)...\n');
+
+            let count = 0;
+            const maxCount = 200;
+            const startTime = performance.now();
+            const times = [];
+
+            function loop() {
+                const now = performance.now();
+                if (count > 0) {
+                    times.push(now - times._lastTime);
+                }
+                times._lastTime = now;
+                count++;
+
+                if (count < maxCount) {
+                    requestAnimationFrame(loop);
+                } else {
+                    const elapsed = performance.now() - startTime;
+                    const avgInterval = elapsed / maxCount;
+
+                    log(`Total time for ${maxCount} iterations: ${elapsed.toFixed(1)} ms`);
+                    log(`Average interval: ${avgInterval.toFixed(3)} ms`);
+                    log(`Effective frequency: ${(1000 / avgInterval).toFixed(0)} Hz (should be ~60)`);
+                }
+            }
+
+            times._lastTime = performance.now();
+            requestAnimationFrame(loop);
+        };
+
+        // Test 3: Mixed loop like _runLoopFast
+        window.testMixedLoop = function() {
+            log('\n=== Mixed Loop Test (like _runLoopFast) ===');
+            log('Simulating fast loop with multiple steps per setTimeout...\n');
+
+            const stepDurationMs = 0.001; // 1 microsecond target
+            const stepsPerFrame = Math.max(1, Math.floor(16 / Math.max(0.001, stepDurationMs)));
+            log(`Target step duration: ${stepDurationMs} ms`);
+            log(`Steps per setTimeout call: ${stepsPerFrame}`);
+
+            let totalSteps = 0;
+            let iterations = 0;
+            const maxIterations = 100;
+            const startTime = performance.now();
+            const stepTimes = [];
+
+            function doFakeStep() {
+                // Simulate minimal work
+                let sum = 0;
+                for (let i = 0; i < 10; i++) sum += i;
+                return sum;
+            }
+
+            function loop() {
+                const iterStart = performance.now();
+
+                for (let i = 0; i < stepsPerFrame; i++) {
+                    const stepStart = performance.now();
+                    doFakeStep();
+                    stepTimes.push(performance.now() - stepStart);
+                    totalSteps++;
+                }
+
+                iterations++;
+
+                if (iterations < maxIterations) {
+                    setTimeout(loop, 0);
+                } else {
+                    const elapsed = performance.now() - startTime;
+                    const stepsPerSec = totalSteps / (elapsed / 1000);
+
+                    log(`\nResults:`);
+                    log(`  Total steps: ${totalSteps}`);
+                    log(`  Total time: ${elapsed.toFixed(1)} ms`);
+                    log(`  Steps per second: ${stepsPerSec.toFixed(0)}`);
+                    log(`  Avg time per step: ${(elapsed / totalSteps).toFixed(4)} ms`);
+                    log(`  Theoretical max if no setTimeout overhead: ${(totalSteps / (elapsed/1000) * (elapsed / (iterations * 4))).toFixed(0)} steps/sec`);
+
+                    const sorted = stepTimes.slice().sort((a, b) => a - b);
+                    log(`\nActual step computation time:`);
+                    log(`  Avg: ${(stepTimes.reduce((a,b)=>a+b,0)/stepTimes.length).toFixed(4)} ms`);
+                    log(`  Min: ${sorted[0]?.toFixed(4)} ms`);
+                    log(`  Max: ${sorted[sorted.length-1]?.toFixed(4)} ms`);
+                }
+            }
+
+            loop();
+        };
+
+        // Test 4: Pure computation without any setTimeout
+        window.testPureComputation = function() {
+            log('\n=== Pure Computation Test (no async) ===');
+            log('Testing how fast we can do steps without setTimeout overhead...\n');
+
+            // Simulate a simple step
+            function simulateStep() {
+                // Minimal computation
+                let sum = 0;
+                for (let i = 0; i < 100; i++) sum += Math.sin(i);
+                return sum;
+            }
+
+            // Run 100,000 steps synchronously
+            const iterations = 100000;
+            const startTime = performance.now();
+
+            for (let i = 0; i < iterations; i++) {
+                simulateStep();
+            }
+
+            const elapsed = performance.now() - startTime;
+            const stepsPerSec = iterations / (elapsed / 1000);
+
+            log(`Iterations: ${iterations}`);
+            log(`Total time: ${elapsed.toFixed(1)} ms`);
+            log(`Steps per second: ${stepsPerSec.toFixed(0)}`);
+            log(`Average time per step: ${(elapsed / iterations * 1000).toFixed(2)} microseconds`);
+
+            log('\nThis shows the raw computation speed without async overhead.');
+            log('The setTimeout minimum delay (~4ms) is the main bottleneck for fast loops.');
+        };
+
+        // Real TamerApp test
+        window.testTamerApp = function(envName) {
+            log(`\n=== TamerApp Step Test (${envName}) ===\n`);
+
+            const canvas = document.createElement('canvas');
+            canvas.id = 'test-canvas';
+            canvas.width = 400;
+            canvas.height = 400;
+            canvas.style.display = 'none';
+            document.body.appendChild(canvas);
+
+            const app = new TamerApp('test-canvas', {
+                environment: envName,
+                stepDurationMs: 0.001
+            });
+
+            app.agent.startEpisode();
+            app.totalEpisodes = 1;
+
+            // Run steps directly
+            const iterations = 1000;
+            const startTime = performance.now();
+
+            for (let i = 0; i < iterations; i++) {
+                app._doStep(performance.now());
+            }
+
+            const elapsed = performance.now() - startTime;
+            log(`Direct _doStep() x ${iterations}:`);
+            log(`  Total time: ${elapsed.toFixed(1)} ms`);
+            log(`  Steps per second: ${(iterations / (elapsed / 1000)).toFixed(0)}`);
+            log(`  Avg time per step: ${(elapsed / iterations).toFixed(3)} ms`);
+
+            // Now test with rendering
+            const renderStart = performance.now();
+            for (let i = 0; i < iterations; i++) {
+                app._doStep(performance.now());
+                app._render();
+            }
+            const renderElapsed = performance.now() - renderStart;
+            log(`\n_doStep() + _render() x ${iterations}:`);
+            log(`  Total time: ${renderElapsed.toFixed(1)} ms`);
+            log(`  Steps per second: ${(iterations / (renderElapsed / 1000)).toFixed(0)}`);
+            log(`  Avg time per step+render: ${(renderElapsed / iterations).toFixed(3)} ms`);
+
+            app.stop();
+            document.body.removeChild(canvas);
+        };
+
+        log('Timing Diagnostic loaded. Click buttons to run tests.');
+        log('');
+        log('Quick tests to try:');
+        log('  - testTamerApp("mountaincar")  in console');
+        log('  - testTamerApp("tetris")  in console');
+
+        window.testTamerApp = window.testTamerApp;
+    </script>
+</body>
+</html>

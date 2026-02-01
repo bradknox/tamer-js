@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TAMER Demonstrations</title>
-    <link rel="stylesheet" href="css/style.css?v=29">
+    <link rel="stylesheet" href="css/style.css?v=31">
 </head>
 <body>
     <div class="container">
@@ -16,13 +16,14 @@
         <div class="main-content">
             <div class="canvas-container">
                 <div class="env-selector">
+                    <label for="environment-select">Environment:</label>
                     <select id="environment-select">
                         <option value="loopmaze">Loop Maze</option>
+                        <option value="tetris">Tetris</option>
                         <option value="mountaincar">Mountain Car</option>
                         <option value="cartpole">Cart Pole</option>
-                        <option value="acrobot">Acrobot</option>
-                        <option value="tetris">Tetris</option>
                         <option value="robotarm">Robot Arm</option>
+                        <option value="acrobot">Acrobot</option>
                     </select>
                 </div>
                 <canvas id="game-canvas" width="400" height="400"></canvas>
@@ -265,9 +266,16 @@
 
         initApp('loopmaze');
 
-        document.getElementById('environment-select').addEventListener('change', (e) => {
+        // Highlight dropdown until first interaction
+        const envSelect = document.getElementById('environment-select');
+        envSelect.classList.add('highlight');
+        envSelect.addEventListener('change', (e) => {
+            envSelect.classList.remove('highlight');
             initApp(e.target.value);
-        });
+        }, { once: false });
+        envSelect.addEventListener('click', () => {
+            envSelect.classList.remove('highlight');
+        }, { once: true });
 
         document.getElementById('start-btn').addEventListener('click', () => {
             if (app.running) {
