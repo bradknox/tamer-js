@@ -211,6 +211,7 @@ header p {
     border-radius: 4px;
     font-size: 11px;
     font-weight: 500;
+    transition: background-color 0.15s, transform 0.15s;
 }
 
 .training-on {
@@ -221,6 +222,11 @@ header p {
 .training-off {
     background-color: #f44336;
     color: white;
+}
+
+.training-off-flash {
+    background-color: #ff8a80;
+    transform: scale(1.15);
 }
 
 /* Mode indicator (TAMER vs Manual) */

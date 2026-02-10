@@ -227,7 +227,8 @@ export class TamerApp {
         }
 
         // Set up keyboard input
-        this._setupKeyboardInput();
+        this._boundHandleKeyDown = (e) => this._handleKeyDown(e);
+        document.addEventListener('keydown', this._boundHandleKeyDown);
 
         // Get action values canvas if available
         this.actionValuesCanvas = document.getElementById('action-values-canvas');
@@ -237,7 +238,8 @@ export class TamerApp {
         this.tetrisThumbnailsContainer = document.getElementById('tetris-thumbnails-container');
 
         // Set up canvas resize handling - use requestAnimationFrame to ensure layout is complete
-        window.addEventListener('resize', () => this._resizeCanvas());
+        this._boundResizeCanvas = () => this._resizeCanvas();
+        window.addEventListener('resize', this._boundResizeCanvas);
         // Initial resize after layout settles
         requestAnimationFrame(() => {
             this._resizeCanvas();
@@ -246,13 +248,6 @@ export class TamerApp {
 
         // Initial render
         this._render();
-    }
-
-    /**
-     * Set up keyboard input handling
-     */
-    _setupKeyboardInput() {
-        document.addEventListener('keydown', (e) => this._handleKeyDown(e));
     }
 
     /**
@@ -455,7 +450,10 @@ export class TamerApp {
         if (!this.running && !this.paused) return;
 
         // Only process rewards when training is enabled
-        if (!this.agent.isTraining()) return;
+        if (!this.agent.isTraining()) {
+            this._flashTrainingIndicator();
+            return;
+        }
 
         this.agent.processHumanReward(reward, time);
 
@@ -518,6 +516,15 @@ export class TamerApp {
         }
         // Clear canvas to prevent flashing of previous environment state
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    /**
+     * Fully clean up this instance (stop + remove event listeners)
+     */
+    destroy() {
+        this.stop();
+        document.removeEventListener('keydown', this._boundHandleKeyDown);
+        window.removeEventListener('resize', this._boundResizeCanvas);
     }
 
     /**
@@ -1280,23 +1287,38 @@ export class TamerApp {
     }
 
     /**
+     * Flash the training indicator to alert user that feedback requires training to be on
+     */
+    _flashTrainingIndicator() {
+        const indicator = document.getElementById('training-indicator');
+        if (!indicator) return;
+        indicator.classList.add('training-off-flash');
+        setTimeout(() => {
+            indicator.classList.remove('training-off-flash');
+        }, 300);
+    }
+
+    /**
      * Update speed indicator (to be called by UI)
      */
     _updateSpeedIndicator() {
         const indicator = document.getElementById('speed-indicator');
         if (indicator) {
-            // Format small values with appropriate precision
+            const freq = 1000 / this.stepDurationMs;
             let speedText;
-            if (this.stepDurationMs < 0.01) {
-                speedText = this.stepDurationMs.toFixed(3);
-            } else if (this.stepDurationMs < 1) {
-                speedText = this.stepDurationMs.toFixed(2);
-            } else if (this.stepDurationMs < 10) {
-                speedText = this.stepDurationMs.toFixed(1);
+            if (freq >= 100) {
+                speedText = Math.round(freq).toString();
+            } else if (freq >= 1) {
+                speedText = freq.toFixed(1);
             } else {
-                speedText = Math.round(this.stepDurationMs).toString();
+                speedText = freq.toFixed(2);
             }
-            indicator.textContent = `Speed: ${speedText}ms/step`;
+            indicator.textContent = `${speedText} steps/sec`;
+        }
+        // Sync slider thumb position
+        const slider = document.getElementById('speed-slider');
+        if (slider) {
+            slider.value = this.stepDurationMs;
         }
     }
 

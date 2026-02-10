@@ -70,16 +70,16 @@
                         </div>
                         <div class="status-item">
                             <span class="status-label">Speed</span>
-                            <span class="status-value" id="speed-indicator">800ms</span>
+                            <span class="status-value" id="speed-indicator">1.3 steps/sec</span>
                         </div>
                     </div>
                     <div style="margin-top: 8px;">
-                        <input type="range" id="speed-slider" min="0.001" max="2000" value="800" step="0.001" style="width: 100%;">
+                        <input type="range" id="speed-slider" min="0.001" max="2000" value="800" step="0.001" style="width: 100%; transform: scaleX(-1);">
                     </div>
                 </div>
 
                 <div class="panel" id="action-values-panel">
-                    <h2>Predicted H(s,a)</h2>
+                    <h2>Predicted feedback (i.e., H(s,a))</h2>
                     <canvas id="action-values-canvas" width="280" height="80"></canvas>
                     <div id="tetris-thumbnails-container" style="display: none;"></div>
                 </div>
@@ -142,7 +142,7 @@
 
         function initApp(envName, useDefaultDuration = true) {
             if (app) {
-                app.stop();
+                app.destroy();
             }
 
             // Clear canvas before creating new app to prevent flashing
@@ -194,18 +194,17 @@
             }
         }
 
-        function updateSpeedIndicator(speed) {
+        function updateSpeedIndicator(ms) {
+            const freq = 1000 / ms;
             let speedText;
-            if (speed < 0.01) {
-                speedText = speed.toFixed(3);
-            } else if (speed < 1) {
-                speedText = speed.toFixed(2);
-            } else if (speed < 10) {
-                speedText = speed.toFixed(1);
+            if (freq >= 100) {
+                speedText = Math.round(freq).toString();
+            } else if (freq >= 1) {
+                speedText = freq.toFixed(1);
             } else {
-                speedText = Math.round(speed).toString();
+                speedText = freq.toFixed(2);
             }
-            document.getElementById('speed-indicator').textContent = `${speedText}ms`;
+            document.getElementById('speed-indicator').textContent = `${speedText} steps/sec`;
         }
 
         function updateStats() {
