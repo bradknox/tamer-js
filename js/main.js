@@ -276,20 +276,6 @@ export class TamerApp {
                 this._giveReward(-1.0, time);
                 break;
 
-            case '?':
-                // Strong positive reward (+10)
-                event.preventDefault();
-                this._giveReward(10.0, time);
-                break;
-
-            case 'shift':
-                if (event.key === 'Z') {
-                    // Strong negative reward (-10)
-                    event.preventDefault();
-                    this._giveReward(-10.0, time);
-                }
-                break;
-
             case ' ':
                 // Toggle training mode
                 event.preventDefault();
@@ -1318,7 +1304,7 @@ export class TamerApp {
         // Sync slider thumb position
         const slider = document.getElementById('speed-slider');
         if (slider) {
-            slider.value = this.stepDurationMs;
+            slider.value = 2000 - this.stepDurationMs;
         }
     }
 

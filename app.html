@@ -27,6 +27,14 @@
                     </select>
                 </div>
                 <canvas id="game-canvas" width="400" height="400"></canvas>
+                <div id="tetris-tip-overlay" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 10;">
+                    <div style="background: #fff; border-radius: 8px; padding: 24px; max-width: 320px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                        <div style="font-size: 24px; margin-bottom: 12px;">&#9888;</div>
+                        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">Tetris Feedback Tip</p>
+                        <p style="margin: 0 0 16px 0; font-size: 13px; line-height: 1.5; color: #444;">Give feedback for the <em>prior</em> piece placement, not the piece currently in motion. Feedback for the current piece will be misinterpreted by TAMER.</p>
+                        <button id="tetris-tip-dismiss" style="padding: 8px 24px; font-size: 13px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Got it</button>
+                    </div>
+                </div>
             </div>
 
             <div class="sidebar">
@@ -74,7 +82,7 @@
                         </div>
                     </div>
                     <div style="margin-top: 8px;">
-                        <input type="range" id="speed-slider" min="0.001" max="2000" value="800" step="0.001" style="width: 100%; transform: scaleX(-1);">
+                        <input type="range" id="speed-slider" min="0" max="2000" value="1200" step="1" style="width: 100%;">
                     </div>
                 </div>
 
@@ -89,8 +97,6 @@
                     <div class="key-columns">
                         <div><span class="key">/</span> +1 reward</div>
                         <div><span class="key">z</span> -1 reward</div>
-                        <div><span class="key">?</span> +10 reward</div>
-                        <div><span class="key">shift+z</span> -10</div>
                         <div><span class="key">Space</span> Toggle train</div>
                         <div><span class="key">2</span> Start/Pause</div>
                         <div><span class="key">1</span> Single step</div>
@@ -123,7 +129,7 @@
     </div>
 
     <script type="module">
-        import { TamerApp } from './js/main.js?v=29';
+        import { TamerApp } from './js/main.js?v=30';
 
         let app;
 
@@ -162,11 +168,11 @@
 
             // Update slider to environment's default when switching environments
             if (useDefaultDuration) {
-                document.getElementById('speed-slider').value = defaultDuration;
+                document.getElementById('speed-slider').value = 2000 - defaultDuration;
                 updateSpeedIndicator(defaultDuration);
             }
 
-            const stepDuration = useDefaultDuration ? defaultDuration : parseFloat(document.getElementById('speed-slider').value);
+            const stepDuration = useDefaultDuration ? defaultDuration : Math.max(0.001, 2000 - parseFloat(document.getElementById('speed-slider').value));
 
             app = new TamerApp('game-canvas', {
                 environment: envName,
@@ -187,10 +193,14 @@
             updateStats();
             updateManualKeysDisplay(envName);
 
-            // Show/hide Tetris feedback note
+            // Show/hide Tetris feedback note and overlay
             const tetrisNote = document.getElementById('tetris-feedback-note');
             if (tetrisNote) {
                 tetrisNote.style.display = envName === 'tetris' ? 'block' : 'none';
+            }
+            const tetrisOverlay = document.getElementById('tetris-tip-overlay');
+            if (tetrisOverlay) {
+                tetrisOverlay.style.display = envName === 'tetris' ? 'flex' : 'none';
             }
         }
 
@@ -279,10 +289,8 @@
         document.getElementById('start-btn').addEventListener('click', () => {
             if (app.running) {
                 app.pause();
-                document.getElementById('start-btn').textContent = 'Start (2)';
             } else {
                 app.start();
-                document.getElementById('start-btn').textContent = 'Pause (2)';
             }
         });
 
@@ -295,14 +303,13 @@
 
         document.getElementById('reset-btn').addEventListener('click', () => {
             app.reset();
-            document.getElementById('start-btn').textContent = 'Start (2)';
             updateStats();
         });
 
         document.getElementById('speed-slider').addEventListener('input', (e) => {
-            const speed = parseFloat(e.target.value);
-            app.setStepDuration(speed);
-            updateSpeedIndicator(speed);
+            const ms = Math.max(0.001, 2000 - parseFloat(e.target.value));
+            app.setStepDuration(ms);
+            updateSpeedIndicator(ms);
         });
 
         document.getElementById('mode-toggle-btn').addEventListener('click', () => {
@@ -321,8 +328,23 @@
             updateStats();
         });
 
+        document.getElementById('tetris-tip-dismiss').addEventListener('click', () => {
+            document.getElementById('tetris-tip-overlay').style.display = 'none';
+        });
+
         setInterval(() => {
-            document.getElementById('start-btn').textContent = app.running ? 'Pause (2)' : 'Start (2)';
+            const btn = document.getElementById('start-btn');
+            const neverStarted = !app.running && !app.paused && app.totalEpisodes === 0;
+            if (app.running) {
+                btn.textContent = 'Pause (2)';
+                btn.classList.remove('pulse');
+            } else if (neverStarted) {
+                btn.textContent = 'Start (2)';
+                btn.classList.add('pulse');
+            } else {
+                btn.textContent = 'Resume (2)';
+                btn.classList.remove('pulse');
+            }
         }, 100);
     </script>
 </body>

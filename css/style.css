@@ -54,6 +54,7 @@ header p {
 }
 
 .canvas-container {
+    position: relative;
     flex: 1;
     background: white;
     border-radius: 8px;
@@ -157,6 +158,15 @@ header p {
 
 .controls button.primary:hover {
     background-color: #1976D2;
+}
+
+.controls button.pulse {
+    animation: pulse-btn 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-btn {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.5); }
+    50% { box-shadow: 0 0 0 8px rgba(33, 150, 243, 0); }
 }
 
 .controls button.secondary {
