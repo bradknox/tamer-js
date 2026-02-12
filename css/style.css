@@ -70,7 +70,7 @@ header p {
 
 .canvas-container canvas#game-canvas {
     display: block;
-    border: 1px solid #ddd;
+    border: none;
     border-radius: 4px;
     /* Size is controlled dynamically by JavaScript to maintain square aspect ratio */
     /* Center horizontally within flex column container */
@@ -253,7 +253,7 @@ header p {
     color: white;
 }
 
-.mode-manual {
+.mode-human {
     background-color: #FF9800;
     color: white;
 }

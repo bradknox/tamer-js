@@ -291,17 +291,17 @@ export class TamerApp {
                 break;
 
             case '1':
+                // Start/stop
+                event.preventDefault();
+                this.toggle();
+                break;
+
+            case '2':
                 // Single step
                 event.preventDefault();
                 if (!this.running) {
                     this._singleStep();
                 }
-                break;
-
-            case '2':
-                // Start/stop
-                event.preventDefault();
-                this.toggle();
                 break;
 
             case '+':
@@ -571,6 +571,11 @@ export class TamerApp {
      * Take a single step
      */
     _singleStep() {
+        // Ensure paused is true so _giveReward() accepts feedback after stepping
+        // (without this, if user only single-steps without ever pressing Start,
+        // both running and paused are false, and _giveReward silently rejects)
+        this.paused = true;
+
         if (this.agent.currentObs === null) {
             this.agent.startEpisode();
             this.totalEpisodes++;
@@ -1387,8 +1392,8 @@ export class TamerApp {
     _updateModeIndicator(isManual) {
         const indicator = document.getElementById('mode-indicator');
         if (indicator) {
-            indicator.textContent = isManual ? 'Mode: Manual' : 'Mode: TAMER';
-            indicator.className = isManual ? 'mode-manual' : 'mode-tamer';
+            indicator.textContent = isManual ? 'Mode: Human Control' : 'Mode: TAMER';
+            indicator.className = isManual ? 'mode-human' : 'mode-tamer';
         }
     }
 

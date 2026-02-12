@@ -18,6 +18,7 @@
                 <div class="env-selector">
                     <label for="environment-select">Environment:</label>
                     <select id="environment-select">
+                        <option value="" disabled selected>-- Select an environment --</option>
                         <option value="loopmaze">Loop Maze</option>
                         <option value="tetris">Tetris</option>
                         <option value="mountaincar">Mountain Car</option>
@@ -35,14 +36,30 @@
                         <button id="tetris-tip-dismiss" style="padding: 8px 24px; font-size: 13px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Got it</button>
                     </div>
                 </div>
+                <div id="credit-tip-overlay" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 10;">
+                    <div style="background: #fff; border-radius: 8px; padding: 24px; max-width: 340px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                        <div style="font-size: 24px; margin-bottom: 12px;">&#9201;</div>
+                        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">Feedback Timing Tip</p>
+                        <p style="margin: 0 0 16px 0; font-size: 13px; line-height: 1.5; color: #444;">Once you toggle training on, try to give feedback (<b>/</b> or <b>z</b>) as quickly as possible after the action you&rsquo;re rating. That said, the system does expect small delays and handles them automatically &mdash; just do your best!</p>
+                        <button id="credit-tip-dismiss" style="padding: 8px 24px; font-size: 13px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Got it</button>
+                    </div>
+                </div>
+                <div id="human-control-overlay" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 10;">
+                    <div style="background: #fff; border-radius: 8px; padding: 24px; max-width: 340px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                        <div style="font-size: 24px; margin-bottom: 12px;">&#127918;</div>
+                        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">Human Control Mode</p>
+                        <p id="human-control-overlay-text" style="margin: 0 0 16px 0; font-size: 13px; line-height: 1.5; color: #444;"></p>
+                        <button id="human-control-dismiss" style="padding: 8px 24px; font-size: 13px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Got it</button>
+                    </div>
+                </div>
             </div>
 
             <div class="sidebar">
                 <div class="panel">
                     <h2>Controls</h2>
                     <div class="controls">
-                        <button id="start-btn" class="primary">Start (2)</button>
-                        <button id="step-btn" class="secondary">Step (1)</button>
+                        <button id="start-btn" class="primary">Start (1)</button>
+                        <button id="step-btn" class="secondary">Step (2)</button>
                         <button id="reset-btn" class="danger">Reset (R)</button>
                     </div>
                     <div style="margin-top: 8px;">
@@ -56,8 +73,8 @@
                         <span style="font-size: 11px; color: #666;">(Space to toggle)</span>
                     </div>
                     <div style="margin-top: 6px; display: flex; align-items: center; gap: 10px;">
-                        <span id="mode-indicator" class="mode-tamer">Mode: TAMER</span>
-                        <button id="mode-toggle-btn" class="secondary" style="padding: 3px 8px; font-size: 11px;">Toggle Manual</button>
+                        <span id="mode-indicator" class="mode-tamer" style="white-space: nowrap;">Mode: TAMER</span>
+                        <button id="mode-toggle-btn" class="secondary" style="padding: 3px 8px; font-size: 11px; white-space: nowrap;">Toggle Human Ctrl</button>
                     </div>
                 </div>
 
@@ -87,37 +104,38 @@
                 </div>
 
                 <div class="panel" id="action-values-panel">
-                    <h2>Predicted feedback (i.e., H(s,a))</h2>
+                    <h2>Predicted feedback</h2>
                     <canvas id="action-values-canvas" width="280" height="80"></canvas>
                     <div id="tetris-thumbnails-container" style="display: none;"></div>
                 </div>
 
                 <div class="panel instructions">
                     <h2>Keyboard Shortcuts</h2>
+                    <div style="font-size: 10px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px;">Feedback</div>
                     <div class="key-columns">
-                        <div><span class="key">/</span> +1 reward</div>
-                        <div><span class="key">z</span> -1 reward</div>
-                        <div><span class="key">Space</span> Toggle train</div>
-                        <div><span class="key">2</span> Start/Pause</div>
-                        <div><span class="key">1</span> Single step</div>
+                        <div><span class="key">/</span> Good (+1)</div>
+                        <div><span class="key">z</span> Bad (-1)</div>
+                        <div><span class="key">Space</span> Toggle training</div>
+                    </div>
+                    <div style="font-size: 10px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; margin-bottom: 3px;">Simulation</div>
+                    <div class="key-columns">
+                        <div><span class="key">1</span> Start / Pause</div>
+                        <div><span class="key">2</span> Single step</div>
                         <div><span class="key">+/-</span> Speed</div>
-                        <div><span class="key">m</span> Toggle manual</div>
                     </div>
-                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #eee;">
-                        <div style="font-weight: 500; margin-bottom: 4px; color: #333;">Manual Control (press m to toggle):</div>
-                        <div id="manual-keys-info" class="key-columns">
-                            <div><span class="key">← / J</span> Left</div>
-                            <div><span class="key">→ / L</span> Right</div>
-                            <div><span class="key">↑ / I</span> Up</div>
-                            <div><span class="key">↓ / K</span> Down/None</div>
-                        </div>
-                        <div id="manual-env-note" style="font-size: 10px; color: #888; margin-top: 4px;">
-                            (All 4 directions for Loop Maze/Robot Arm)
-                        </div>
+                    <div style="font-size: 10px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; margin-bottom: 3px;">Human Control <span style="font-weight: 400; text-transform: none;">(press <span class="key" style="font-size: 9px; padding: 1px 4px;">m</span> to toggle)</span></div>
+                    <div id="manual-keys-info" class="key-columns">
+                        <div><span class="key">← / j</span> Left</div>
+                        <div><span class="key">→ / l</span> Right</div>
+                        <div><span class="key">↑ / i</span> Up</div>
+                        <div><span class="key">↓ / k</span> Down/None</div>
                     </div>
-                    <p style="margin: 8px 0 0 0; color: #666;">
-                        Press <b>Space</b> to enable training, then <b>/</b> for good moves, <b>z</b> for bad.
-                    </p>
+                    <div id="manual-env-note" style="font-size: 10px; color: #888; margin-top: 4px;">
+                        (All 4 directions for Loop Maze/Robot Arm)
+                    </div>
+                    <div style="font-size: 10px; color: #666; margin-top: 4px; font-style: italic;">
+                        Actions are sticky &mdash; the last key you pressed keeps repeating.
+                    </div>
                 </div>
             </div>
         </div>
@@ -132,6 +150,8 @@
         import { TamerApp } from './js/main.js?v=30';
 
         let app;
+        let shownCreditSplash = false;
+        let shownHumanControlSplash = false;
 
         // Default timestep durations in ms - from Java TAMER project
         // Continuous control (mountaincar, cartpole, acrobot, robotarm) use 200ms default
@@ -202,6 +222,17 @@
             if (tetrisOverlay) {
                 tetrisOverlay.style.display = envName === 'tetris' ? 'flex' : 'none';
             }
+
+            // Show credit assignment tip for non-Tetris environments (once per session)
+            const creditOverlay = document.getElementById('credit-tip-overlay');
+            if (creditOverlay) {
+                if (envName !== 'tetris' && !shownCreditSplash) {
+                    creditOverlay.style.display = 'flex';
+                    shownCreditSplash = true;
+                } else {
+                    creditOverlay.style.display = 'none';
+                }
+            }
         }
 
         function updateSpeedIndicator(ms) {
@@ -218,6 +249,7 @@
         }
 
         function updateStats() {
+            if (!app) return;
             const stats = app.getStats();
             document.getElementById('episode-count').textContent = stats.totalEpisodes;
             document.getElementById('step-count').textContent = stats.stepsThisEp;
@@ -227,8 +259,8 @@
             // Update mode indicator
             const modeIndicator = document.getElementById('mode-indicator');
             if (modeIndicator) {
-                modeIndicator.textContent = stats.isManualMode ? 'Mode: Manual' : 'Mode: TAMER';
-                modeIndicator.className = stats.isManualMode ? 'mode-manual' : 'mode-tamer';
+                modeIndicator.textContent = stats.isManualMode ? 'Mode: Human Control' : 'Mode: TAMER';
+                modeIndicator.className = stats.isManualMode ? 'mode-human' : 'mode-tamer';
             }
         }
 
@@ -273,20 +305,50 @@
             }
         }
 
-        initApp('loopmaze');
+        function showHumanControlOverlay() {
+            const envName = document.getElementById('environment-select').value;
+            let keysText;
+            if (envName === 'cartpole') {
+                keysText = '<b>&larr;/j</b> (push left) and <b>&rarr;/l</b> (push right)';
+            } else if (envName === 'mountaincar' || envName === 'acrobot') {
+                keysText = '<b>&larr;/j</b> (left), <b>&darr;/k</b> (neutral), and <b>&rarr;/l</b> (right)';
+            } else {
+                keysText = '<b>&larr;/j</b>, <b>&rarr;/l</b>, <b>&uarr;/i</b>, and <b>&darr;/k</b>';
+            }
+            document.getElementById('human-control-overlay-text').innerHTML =
+                'You now control the agent using ' + keysText +
+                '. Actions are <b>sticky</b> &mdash; the last key you pressed keeps repeating each step until you press a different key.';
+            document.getElementById('human-control-overlay').style.display = 'flex';
+            shownHumanControlSplash = true;
+        }
 
-        // Highlight dropdown until first interaction
+        // Draw instructional text on canvas before any environment is loaded
+        function drawCanvasPlaceholder() {
+            const canvas = document.getElementById('game-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#888';
+            ctx.font = '18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Select an environment above to begin', canvas.width / 2, canvas.height / 2);
+        }
+        drawCanvasPlaceholder();
+
+        // Highlight dropdown until first selection
         const envSelect = document.getElementById('environment-select');
         envSelect.classList.add('highlight');
         envSelect.addEventListener('change', (e) => {
+            if (!e.target.value) return; // ignore placeholder
             envSelect.classList.remove('highlight');
+            // Remove the placeholder option after first selection
+            const placeholder = envSelect.querySelector('option[value=""]');
+            if (placeholder) placeholder.remove();
             initApp(e.target.value);
         }, { once: false });
-        envSelect.addEventListener('click', () => {
-            envSelect.classList.remove('highlight');
-        }, { once: true });
 
         document.getElementById('start-btn').addEventListener('click', () => {
+            if (!app) return;
             if (app.running) {
                 app.pause();
             } else {
@@ -295,6 +357,7 @@
         });
 
         document.getElementById('step-btn').addEventListener('click', () => {
+            if (!app) return;
             if (!app.running) {
                 app._singleStep();
                 updateStats();
@@ -302,28 +365,35 @@
         });
 
         document.getElementById('reset-btn').addEventListener('click', () => {
+            if (!app) return;
             app.reset();
             updateStats();
         });
 
         document.getElementById('speed-slider').addEventListener('input', (e) => {
+            if (!app) return;
             const ms = Math.max(0.001, 2000 - parseFloat(e.target.value));
             app.setStepDuration(ms);
             updateSpeedIndicator(ms);
         });
 
         document.getElementById('mode-toggle-btn').addEventListener('click', () => {
+            if (!app) return;
             const result = app.toggleManualControlMode();
-            // Show feedback if Tetris (manual control not supported)
+            // Show feedback if Tetris (human control not supported)
             if (result === false && document.getElementById('environment-select').value === 'tetris') {
                 const indicator = document.getElementById('mode-indicator');
                 const originalText = indicator.textContent;
-                indicator.textContent = 'Manual control not supported for Tetris';
+                indicator.textContent = 'Human control not supported for Tetris';
                 indicator.style.color = '#f44336';
                 setTimeout(() => {
                     indicator.textContent = originalText;
                     indicator.style.color = '';
                 }, 2000);
+            }
+            // Show human control overlay on first activation
+            if (app.manualControlMode && !shownHumanControlSplash) {
+                showHumanControlOverlay();
             }
             updateStats();
         });
@@ -332,17 +402,33 @@
             document.getElementById('tetris-tip-overlay').style.display = 'none';
         });
 
+        document.getElementById('credit-tip-dismiss').addEventListener('click', () => {
+            document.getElementById('credit-tip-overlay').style.display = 'none';
+        });
+
+        document.getElementById('human-control-dismiss').addEventListener('click', () => {
+            document.getElementById('human-control-overlay').style.display = 'none';
+        });
+
+        // Show human control overlay when 'm' key activates human control mode
+        document.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'm' && app && app.manualControlMode && !shownHumanControlSplash) {
+                showHumanControlOverlay();
+            }
+        });
+
         setInterval(() => {
+            if (!app) return;
             const btn = document.getElementById('start-btn');
             const neverStarted = !app.running && !app.paused && app.totalEpisodes === 0;
             if (app.running) {
-                btn.textContent = 'Pause (2)';
+                btn.textContent = 'Pause (1)';
                 btn.classList.remove('pulse');
             } else if (neverStarted) {
-                btn.textContent = 'Start (2)';
+                btn.textContent = 'Start (1)';
                 btn.classList.add('pulse');
             } else {
-                btn.textContent = 'Resume (2)';
+                btn.textContent = 'Resume (1)';
                 btn.classList.remove('pulse');
             }
         }, 100);
